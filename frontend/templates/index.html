@@ -56,6 +56,15 @@
     {% endfor %}
 </div>
 
+<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<df-messenger
+  intent="WELCOME"
+  chat-title="STEM Success Global Tutors"
+  agent-id="c4cb4451-2b4d-4812-820d-25bbd60b283a"
+  language-code="en"
+></df-messenger>
+
+
 {% if not products %}
 <p>No products found for "{{ search }}".</p>
 {% endif %}
