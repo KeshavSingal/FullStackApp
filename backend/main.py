@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, Response, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,18 +13,23 @@ app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 # Set up templates
 templates = Jinja2Templates(directory="frontend/templates")
 
-# In-memory storage for demo purposes
+# File path for product storage
+PRODUCT_FILE = Path("data/products.json")
+
+# Helper functions to load and save data
+def load_products():
+    if PRODUCT_FILE.exists():
+        with open(PRODUCT_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def save_products(data):
+    with open(PRODUCT_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+# In-memory user storage for demo purposes
 users = [{"username": "keshav", "password": "password123"}]
-products = [
-    {"id": 1, "name": "Math Gr. 6-8", "price": 100, "image": "https://picsum.photos/200/300?random=1"},
-    {"id": 2, "name": "English Gr. 6-8", "price": 90, "image": "https://picsum.photos/200/300?random=2"},
-    {"id": 3, "name": "Science Gr. 6-8", "price": 110, "image": "https://picsum.photos/200/300?random=3"},
-    {"id": 4, "name": "Computers Gr. 6-8", "price": 120, "image": "https://picsum.photos/200/300?random=4"},
-    {"id": 5, "name": "Math Gr. 1-5", "price": 80, "image": "https://picsum.photos/200/300?random=5"},
-    {"id": 6, "name": "English Gr. 1-5", "price": 70, "image": "https://picsum.photos/200/300?random=6"},
-    {"id": 7, "name": "Science Gr. 1-5", "price": 85, "image": "https://picsum.photos/200/300?random=7"},
-    {"id": 8, "name": "Computers Gr. 1-5", "price": 95, "image": "https://picsum.photos/200/300?random=8"},
-]
+products = load_products()
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
@@ -64,3 +71,25 @@ async def logout(request: Request):
     response = templates.TemplateResponse("logout.html", {"request": request, "username": username})
     response.delete_cookie("username")
     return response
+
+@app.get("/add-product", response_class=HTMLResponse)
+async def add_product_form(request: Request):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+    return templates.TemplateResponse("add_product.html", {"request": request, "username": username})
+
+@app.post("/add-product")
+async def add_product(request: Request, name: str = Form(...), price: float = Form(...), image: str = Form(...)):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+    new_product = {
+        "id": len(products) + 1,
+        "name": name,
+        "price": price,
+        "image": image
+    }
+    products.append(new_product)
+    save_products(products)
+    return RedirectResponse("/", status_code=303)

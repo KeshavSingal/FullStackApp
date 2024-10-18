@@ -14,7 +14,11 @@
     <nav>
         <a href="/" class="text-white me-3">Home</a>
         <a href="/register" class="text-white me-3">Register</a>
-        <a href="/login" class="text-white">Login</a>
+        <a href="/login" class="text-white me-3">Login</a>
+        {% if username %}
+        <a href="/add-product" class="text-white me-3">Add Product</a>
+        <a href="/logout" class="text-white">Logout</a>
+        {% endif %}
     </nav>
 </header>
 <div class="container mt-4">
