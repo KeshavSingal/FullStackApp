@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="my-4">Featured Products</h2>
+
+<!-- Carousel Section: Reduced height for a smaller slideshow -->
+<div id="featuredCarousel" class="carousel slide mb-5" data-bs-ride="carousel">
+    <div class="carousel-inner">
+        {% for product in products[:4] %}
+        <div class="carousel-item {% if loop.index == 1 %}active{% endif %}">
+            <img src="{{ product.image }}" class="d-block w-50 mx-auto carousel-img-small" alt="{{ product.name }}">
+            <div class="carousel-caption d-none d-md-block">
+                <h5>{{ product.name }}</h5>
+                <p>Price: ${{ product.price }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#featuredCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#featuredCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+    </button>
+</div>
+
+<!-- Search Section -->
+<form method="get" action="/" class="my-4">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search for products..." class="form-control mb-3">
+    <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+<!-- Personalized Greeting Section -->
+{% if username %}
+    <p class="greeting-text">Hi, {{ username }}! Welcome back.</p>
+    <a href="/logout" class="btn btn-secondary mb-4">Logout</a>
+{% else %}
+    <a href="/login" class="btn btn-primary mb-4">Login</a>
+{% endif %}
+
+<!-- Product Cards Section -->
+<div class="row">
+    {% for product in products %}
+    <div class="col-md-3">
+        <div class="card mb-4 product-card animate__animated animate__fadeInUp">
+            <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}">
+            <div class="card-body">
+                <h5 class="card-title">{{ product.name }}</h5>
+                <p class="card-text">${{ product.price }}</p>
+                <a href="#" class="btn btn-primary">Buy Now</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not products %}
+<p>No products found for "{{ search }}".</p>
+{% endif %}
+{% endblock %}
