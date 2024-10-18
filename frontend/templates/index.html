@@ -1,27 +1,31 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="my-4">Featured Products</h2>
+<h2 class="my-4 text-center">Featured Products</h2>
 
-<!-- Carousel Section: Reduced height for a smaller slideshow -->
+<!-- Carousel Section -->
 <div id="featuredCarousel" class="carousel slide mb-5" data-bs-ride="carousel">
     <div class="carousel-inner">
         {% for product in products[:4] %}
         <div class="carousel-item {% if loop.index == 1 %}active{% endif %}">
-            <img src="{{ product.image }}" class="d-block w-50 mx-auto carousel-img-small" alt="{{ product.name }}">
-            <div class="carousel-caption d-none d-md-block">
+            <img src="{{ product.image }}" class="d-block mx-auto"
+                 style="max-height: 350px; width: 70%; object-fit: cover; border-radius: 10px;"
+                 alt="{{ product.name }}">
+            <div class="carousel-caption bg-dark text-white p-3 rounded" style="opacity: 0.8;">
                 <h5>{{ product.name }}</h5>
                 <p>Price: ${{ product.price }}</p>
             </div>
         </div>
         {% endfor %}
     </div>
+
+    <!-- Carousel Controls -->
     <button class="carousel-control-prev" type="button" data-bs-target="#featuredCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="carousel-control-prev-icon bg-dark rounded-circle" aria-hidden="true"></span>
         <span class="visually-hidden">Previous</span>
     </button>
     <button class="carousel-control-next" type="button" data-bs-target="#featuredCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="carousel-control-next-icon bg-dark rounded-circle" aria-hidden="true"></span>
         <span class="visually-hidden">Next</span>
     </button>
 </div>
@@ -43,9 +47,12 @@
 <!-- Product Cards Section -->
 <div class="row">
     {% for product in products %}
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card mb-4 product-card animate__animated animate__fadeInUp">
-            <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}">
+            <img src="{{ product.image }}"
+                 class="card-img-top"
+                 alt="{{ product.name }}"
+                 style="max-height: 300px; object-fit: cover;">
             <div class="card-body">
                 <h5 class="card-title">{{ product.name }}</h5>
                 <p class="card-text">${{ product.price }}</p>
@@ -55,6 +62,14 @@
     </div>
     {% endfor %}
 </div>
+
+<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<df-messenger
+  intent="WELCOME"
+  chat-title="STEM Success Global Tutors"
+  agent-id="c4cb4451-2b4d-4812-820d-25bbd60b283a"
+  language-code="en"
+></df-messenger>
 
 {% if not products %}
 <p>No products found for "{{ search }}".</p>
