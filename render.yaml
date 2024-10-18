@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ecommerce-app
+    env: python
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port 10000"
+    plan: free
+
+  - type: static
+    name: frontend
+    env: static
+    staticPublishPath: frontend
+    routes:
+      - type: rewrite
+        source: /
+        destination: /index.html
