@@ -11,9 +11,12 @@ app = FastAPI()
 # Get the root directory dynamically
 ROOT_DIR = Path(__file__).parent.parent
 
-# Define paths to static and template folders
+# Define paths to static, template, product, user, and cart folders
 STATIC_DIR = ROOT_DIR / "frontend" / "static"
 TEMPLATE_DIR = ROOT_DIR / "frontend" / "templates"
+PRODUCT_FILE = ROOT_DIR / "data" / "products.json"
+USER_FILE = ROOT_DIR / "data" / "users.json"
+CART_FILE = ROOT_DIR / "data" / "cart.json"
 
 # Check if static and templates directories exist
 if not STATIC_DIR.exists():
@@ -28,35 +31,85 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Set up templates
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
-# File path for product storage
-PRODUCT_FILE = ROOT_DIR / "data" / "products.json"
-
 # Helper functions to load and save data
-def load_products():
-    if PRODUCT_FILE.exists():
-        with open(PRODUCT_FILE, "r") as f:
+def load_json(file_path):
+    if file_path.exists():
+        with open(file_path, "r") as f:
             return json.load(f)
     return []
 
-def save_products(data):
-    with open(PRODUCT_FILE, "w") as f:
+def save_json(file_path, data):
+    with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
 
-# In-memory user storage for demo purposes
-users = [{"username": "keshav", "password": "password123"}]
-products = load_products()
+products = load_json(PRODUCT_FILE)
+users = load_json(USER_FILE)
+
+# Initialize empty cart if not present
+if not CART_FILE.exists():
+    save_json(CART_FILE, {})
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
     username = request.cookies.get("username")
-    # Filter products by the search term if provided
+    cart = load_json(CART_FILE).get(username, []) if username else []
     filtered_products = [product for product in products if search.lower() in product["name"].lower()]
     return templates.TemplateResponse("index.html", {
         "request": request,
         "products": filtered_products,
         "username": username,
-        "search": search
+        "search": search,
+        "cart_count": len(cart),
     })
+
+@app.post("/add-to-cart")
+async def add_to_cart(request: Request, product_id: int = Form(...)):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    cart_data = load_json(CART_FILE)  # Load existing cart data
+    cart = cart_data.get(username, [])
+
+    # Find the product by ID
+    product = next((p for p in products if p["id"] == product_id), None)
+    if product:
+        cart.append(product)
+        cart_data[username] = cart
+        save_json(CART_FILE, cart_data)  # Save updated cart to file
+
+    return RedirectResponse("/", status_code=303)
+
+@app.get("/cart", response_class=HTMLResponse)
+async def view_cart(request: Request):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    cart_data = load_json(CART_FILE)
+    cart = cart_data.get(username, [])
+
+    return templates.TemplateResponse("cart.html", {
+        "request": request,
+        "cart_items": cart,
+        "username": username
+    })
+
+@app.post("/remove-from-cart")
+async def remove_from_cart(request: Request, product_id: int = Form(...)):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    cart_data = load_json(CART_FILE)
+    cart = cart_data.get(username, [])
+
+    # Remove product by ID
+    cart = [item for item in cart if item["id"] != product_id]
+    cart_data[username] = cart
+    save_json(CART_FILE, cart_data)
+
+    return RedirectResponse("/cart", status_code=303)
 
 @app.get("/register", response_class=HTMLResponse)
 async def register_form(request: Request):
@@ -64,10 +117,10 @@ async def register_form(request: Request):
 
 @app.post("/register")
 async def register_user(username: str = Form(...), password: str = Form(...)):
-    # Check if the user already exists
     if any(user["username"] == username for user in users):
         raise HTTPException(status_code=400, detail="Username already exists.")
     users.append({"username": username, "password": password})
+    save_json(USER_FILE, users)
     return RedirectResponse("/", status_code=303)
 
 @app.get("/login", response_class=HTMLResponse)
@@ -84,7 +137,7 @@ async def login(response: Response, username: str = Form(...), password: str = F
     raise HTTPException(status_code=400, detail="Invalid username or password")
 
 @app.get("/logout", response_class=HTMLResponse)
-async def logout(request: Request):
+async def logout(response: Response):
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("username")
     return response
@@ -108,6 +161,5 @@ async def add_product(name: str = Form(...), price: float = Form(...), image: st
         "image": image
     }
     products.append(new_product)
-    save_products(products)
+    save_json(PRODUCT_FILE, products)
     return RedirectResponse("/", status_code=303)
-
