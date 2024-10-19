@@ -33,7 +33,7 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 PRODUCT_FILE = ROOT_DIR / "data" / "products.json"
 USER_FILE = ROOT_DIR / "data" / "users.json"
 CART_FILE = ROOT_DIR / "data" / "carts.json"
-
+UPLOAD_DIR = STATIC_DIR / "uploads"
 
 # Helper functions to load and save data
 def load_products():
@@ -42,11 +42,9 @@ def load_products():
             return json.load(f)
     return []
 
-
 def save_products(data):
     with open(PRODUCT_FILE, "w") as f:
         json.dump(data, f, indent=4)
-
 
 def load_users():
     if USER_FILE.exists():
@@ -54,11 +52,9 @@ def load_users():
             return json.load(f)
     return []
 
-
 def save_users(data):
     with open(USER_FILE, "w") as f:
         json.dump(data, f, indent=4)
-
 
 def load_carts():
     if CART_FILE.exists():
@@ -66,16 +62,37 @@ def load_carts():
             return json.load(f)
     return {}
 
-
 def save_carts(data):
     with open(CART_FILE, "w") as f:
         json.dump(data, f, indent=4)
-
 
 products = load_products()
 users = load_users()
 carts = load_carts()
 
+@app.post("/clear-userbase", response_class=HTMLResponse)
+async def clear_userbase(request: Request):
+    # Relaxed security: no strict authentication check for now
+    # Warning: This should NOT be used in a production environment
+
+    # Clear the JSON files (reset the databases)
+    paths_to_clear = [USER_FILE, PRODUCT_FILE, CART_FILE]
+    for path in paths_to_clear:
+        with open(path, "w") as f:
+            if path == CART_FILE:
+                json.dump({}, f, indent=4)  # Clear carts as an empty dictionary
+            else:
+                json.dump([], f, indent=4)  # Clear users and products as empty lists
+
+    # Clear the uploads directory
+    if UPLOAD_DIR.exists():
+        for file in UPLOAD_DIR.iterdir():
+            if file.is_file():
+                file.unlink()  # Delete each file
+            elif file.is_dir():
+                shutil.rmtree(file)  # Delete any subdirectories
+
+    return HTMLResponse(content="All databases and uploads have been cleared successfully.", status_code=200)
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
@@ -91,11 +108,9 @@ async def home(request: Request, search: str = Query("", min_length=0)):
         "cart_count": cart_count
     })
 
-
 @app.get("/register", response_class=HTMLResponse)
 async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
-
 
 @app.post("/register")
 async def register_user(username: str = Form(...), password: str = Form(...), email: str = Form(...)):
@@ -119,11 +134,9 @@ async def register_user(username: str = Form(...), password: str = Form(...), em
 
     return RedirectResponse("/", status_code=303)
 
-
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
-
 
 @app.post("/login")
 async def login(response: Response, username: str = Form(...), password: str = Form(...)):
@@ -134,13 +147,11 @@ async def login(response: Response, username: str = Form(...), password: str = F
             return response
     raise HTTPException(status_code=400, detail="Invalid username or password")
 
-
 @app.get("/logout", response_class=HTMLResponse)
 async def logout(response: Response):
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("username")
     return response
-
 
 @app.get("/add-product", response_class=HTMLResponse)
 async def add_product_form(request: Request):
@@ -148,7 +159,6 @@ async def add_product_form(request: Request):
     if not username:
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse("add_product.html", {"request": request, "username": username})
-
 
 @app.post("/add-product")
 async def add_product(
@@ -186,7 +196,6 @@ async def add_product(
 
     return RedirectResponse("/", status_code=303)
 
-
 @app.get("/profile", response_class=HTMLResponse)
 async def profile(request: Request, username: str = None):
     # If no username is provided, use the logged-in user's username
@@ -213,7 +222,6 @@ async def profile(request: Request, username: str = None):
         "average_rating": average_rating
     })
 
-
 @app.get("/edit-profile", response_class=HTMLResponse)
 async def edit_profile(request: Request):
     username = request.cookies.get("username")
@@ -228,7 +236,6 @@ async def edit_profile(request: Request):
         "username": username,
         "user_email": user_email
     })
-
 
 @app.post("/edit-profile")
 async def edit_profile_post(request: Request, username: str = Form(...), email: str = Form(...)):
@@ -251,7 +258,6 @@ async def edit_profile_post(request: Request, username: str = Form(...), email: 
     response.set_cookie(key="username", value=username)
     return response
 
-
 @app.post("/rate-user")
 async def rate_user(request: Request, username: str = Form(...), rating: int = Form(...)):
     if not (1 <= rating <= 5):
@@ -272,7 +278,6 @@ async def rate_user(request: Request, username: str = Form(...), rating: int = F
 
     return RedirectResponse(f"/profile?username={username}", status_code=303)
 
-
 # Shopping cart mechanism
 @app.get("/cart", response_class=HTMLResponse)
 async def view_cart(request: Request):
@@ -286,7 +291,6 @@ async def view_cart(request: Request):
         "cart_items": cart_items,
         "username": username
     })
-
 
 @app.post("/add-to-cart", response_class=HTMLResponse)
 async def add_to_cart(request: Request, product_id: int = Form(...)):
@@ -307,7 +311,6 @@ async def add_to_cart(request: Request, product_id: int = Form(...)):
 
     # Redirect to the cart page after adding the product
     return RedirectResponse("/cart", status_code=303)
-
 
 @app.post("/remove-from-cart", response_class=HTMLResponse)
 async def remove_from_cart(request: Request, product_id: int = Form(...)):
