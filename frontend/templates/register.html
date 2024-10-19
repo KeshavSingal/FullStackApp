@@ -3,9 +3,12 @@
 {% block content %}
 <h2 class="my-4">Register</h2>
 <form method="post" action="/register" class="form-group">
-    <input type="text" name="username" placeholder="Username" class="form-control mb-2" required>
+    <input type="text" name="username" placeholder="Username" class="form-control mb-2" value="{{ username }}" required>
     <input type="password" name="password" placeholder="Password" class="form-control mb-2" required>
-    <input type="email" name="email" placeholder="University Email (must end with @mail.utoronto.ca)" class="form-control mb-2" required>
+    <input type="text" name="email" placeholder="Email" class="form-control mb-2" value="{{ email }}" required>
     <button type="submit" class="btn btn-primary">Register</button>
+    {% if error_message %}
+    <div class="alert alert-danger mt-3">{{ error_message }}</div>
+    {% endif %}
 </form>
 {% endblock %}

@@ -105,8 +105,7 @@ async def home(request: Request, search: str = Query("", min_length=0)):
         "products": filtered_products,
         "username": username,
         "search": search,
-        "cart_count": cart_count,
-        "show_add_product_button": username is not None  # Show 'Add Product' button if user is logged in
+        "cart_count": cart_count
     })
 
 @app.get("/register", response_class=HTMLResponse)
@@ -114,16 +113,26 @@ async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
 @app.post("/register")
-async def register_user(username: str = Form(...), password: str = Form(...), email: str = Form(...)):
+async def register_user(request: Request, username: str = Form(...), password: str = Form(...), email: str = Form(...)):
+    error_message = None
+
     # Validate that the email is from the University of Toronto
     if not email.endswith("@mail.utoronto.ca"):
-        raise HTTPException(status_code=400, detail="Only University of Toronto email addresses are allowed.")
+        error_message = "Only University of Toronto email addresses are allowed."
 
     # Check if the username or email already exists
-    if any(user["username"] == username for user in users):
-        raise HTTPException(status_code=400, detail="Username already exists.")
-    if any(user.get("email") == email for user in users):
-        raise HTTPException(status_code=400, detail="Email already registered.")
+    elif any(user["username"] == username for user in users):
+        error_message = "Username already exists."
+    elif any(user.get("email") == email for user in users):
+        error_message = "Email already registered."
+
+    if error_message:
+        return templates.TemplateResponse("register.html", {
+            "request": request,
+            "error_message": error_message,
+            "username": username,
+            "email": email
+        })
 
     # Register the user
     users.append({
@@ -140,13 +149,19 @@ async def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-async def login(response: Response, username: str = Form(...), password: str = Form(...)):
+async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
     for user in users:
         if user["username"] == username and user["password"] == password:
             response = RedirectResponse("/", status_code=303)
             response.set_cookie(key="username", value=username)
             return response
-    raise HTTPException(status_code=400, detail="Invalid username or password")
+
+    error_message = "Invalid username or password"
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "error_message": error_message,
+        "username": username
+    })
 
 @app.get("/logout", response_class=HTMLResponse)
 async def logout(response: Response):
@@ -279,6 +294,7 @@ async def rate_user(request: Request, username: str = Form(...), rating: int = F
 
     return RedirectResponse(f"/profile?username={username}", status_code=303)
 
+# Shopping cart mechanism
 @app.get("/cart", response_class=HTMLResponse)
 async def view_cart(request: Request):
     username = request.cookies.get("username")

@@ -3,8 +3,11 @@
 {% block content %}
 <h2 class="my-4">Login</h2>
 <form method="post" action="/login" class="form-group">
-    <input type="text" name="username" placeholder="Username" class="form-control mb-2" required>
+    <input type="text" name="username" placeholder="Username" class="form-control mb-2" value="{{ username }}" required>
     <input type="password" name="password" placeholder="Password" class="form-control mb-2" required>
     <button type="submit" class="btn btn-primary">Login</button>
+    {% if error_message %}
+    <div class="alert alert-danger mt-3">{{ error_message }}</div>
+    {% endif %}
 </form>
 {% endblock %}
