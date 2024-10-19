@@ -1,6 +1,5 @@
 import os
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
+from pymongo import MongoClient, ssl_support
 from bson import ObjectId
 from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,20 +19,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# MongoDB setup
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+# MongoDB setup with SSL configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority")
 logger.info(f"Connecting to MongoDB with URI: {MONGO_URI}")
-client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
 
-# Test the connection to MongoDB
-try:
-    client.admin.command('ping')
-    logger.info("Pinged your deployment. You successfully connected to MongoDB!")
-except Exception as e:
-    logger.error(f"Failed to connect to MongoDB: {e}")
-    raise HTTPException(status_code=500, detail="Failed to connect to MongoDB. Please check your connection.")
-
-# Define the database and collections
+client = MongoClient(MONGO_URI, ssl=True, ssl_cert_reqs=ssl_support.CERT_NONE)
 db = client["marketplace_db"]
 products_collection = db["products"]
 users_collection = db["users"]
