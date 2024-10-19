@@ -1,17 +1,26 @@
-import json
-from pathlib import Path
+import os
+from pymongo import MongoClient
+from bson import ObjectId
 from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import shutil
-import os
+from pathlib import Path
 import random
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 app = FastAPI()
+
+# MongoDB setup
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+client = MongoClient(MONGO_URI)
+db = client["marketplace_db"]
+products_collection = db["products"]
+users_collection = db["users"]
+carts_collection = db["carts"]
 
 # Get the root directory dynamically
 ROOT_DIR = Path(__file__).parent.parent
@@ -33,53 +42,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Set up templates
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
-# File paths for product storage, user data, and carts
-PRODUCT_FILE = ROOT_DIR / "data" / "products.json"
-USER_FILE = ROOT_DIR / "data" / "users.json"
-CART_FILE = ROOT_DIR / "data" / "carts.json"
 UPLOAD_DIR = STATIC_DIR / "uploads"
-
-
-# Helper functions to load and save data
-def load_products():
-    if PRODUCT_FILE.exists():
-        with open(PRODUCT_FILE, "r") as f:
-            return json.load(f)
-    return []
-
-
-def save_products(data):
-    with open(PRODUCT_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-def load_users():
-    if USER_FILE.exists():
-        with open(USER_FILE, "r") as f:
-            return json.load(f)
-    return []
-
-
-def save_users(data):
-    with open(USER_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-def load_carts():
-    if CART_FILE.exists():
-        with open(CART_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-
-def save_carts(data):
-    with open(CART_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-products = load_products()
-users = load_users()
-carts = load_carts()
 
 # OTP Management
 OTP_STORE = {}
@@ -88,7 +51,6 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_EMAIL = "keshavjindal2k19@gmail.com"  # Replace with your email
 SMTP_PASSWORD = "qdzn xhtg vydw ncgy"
-
 
 def send_otp(email: str, otp: str):
     try:
@@ -108,7 +70,6 @@ def send_otp(email: str, otp: str):
         print(f"Failed to send OTP: {e}")
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
 
-
 @app.post("/generate-otp")
 async def generate_otp(email: str = Form(...)):
     if not email.endswith("@mail.utoronto.ca"):
@@ -124,13 +85,15 @@ async def generate_otp(email: str = Form(...)):
 
     return {"message": "OTP sent to your email."}
 
-
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
     username = request.cookies.get("username")
-    cart_count = len(carts.get(username, [])) if username else 0
-    # Filter products by the search term if provided
-    filtered_products = [product for product in products if search.lower() in product["name"].lower()]
+    cart = carts_collection.find_one({"username": username})
+    cart_count = len(cart["items"]) if cart else 0
+    
+    query = {"name": {"$regex": search, "$options": "i"}} if search else {}
+    filtered_products = list(products_collection.find(query))
+    
     return templates.TemplateResponse("index.html", {
         "request": request,
         "products": filtered_products,
@@ -139,27 +102,22 @@ async def home(request: Request, search: str = Query("", min_length=0)):
         "cart_count": cart_count
     })
 
-
 @app.get("/register", response_class=HTMLResponse)
 async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
-
 
 @app.post("/register")
 async def register_user(request: Request, username: str = Form(...), password: str = Form(...), email: str = Form(...),
                         otp: str = Form(...)):
     error_message = None
 
-    # Validate that the email is from the University of Toronto
     if not email.endswith("@mail.utoronto.ca"):
         error_message = "Only University of Toronto email addresses are allowed."
-    # Validate OTP
     elif email not in OTP_STORE or OTP_STORE[email] != otp:
         error_message = "Invalid OTP. Please try again."
-    # Check if the username or email already exists
-    elif any(user["username"] == username for user in users):
+    elif users_collection.find_one({"username": username}):
         error_message = "Username already exists."
-    elif any(user.get("email") == email for user in users):
+    elif users_collection.find_one({"email": email}):
         error_message = "Email already registered."
 
     if error_message:
@@ -170,18 +128,16 @@ async def register_user(request: Request, username: str = Form(...), password: s
             "email": email
         })
 
-    # Register the user
-    users.append({
+    new_user = {
         "username": username,
         "password": password,  # Note: Passwords should be hashed for security reasons
         "email": email,
-        "reviews": [],  # New field to store reviews for each seller
+        "reviews": [],
         "ratings": [],
         "description": "No description added yet."
-    })
-    save_users(users)
+    }
+    users_collection.insert_one(new_user)
 
-    # Remove OTP after successful registration
     if email in OTP_STORE:
         del OTP_STORE[email]
 
@@ -189,11 +145,8 @@ async def register_user(request: Request, username: str = Form(...), password: s
 
 @app.get("/sellers", response_class=HTMLResponse)
 async def list_sellers(request: Request):
-    # Extract sellers from the list of products
-    seller_usernames = {product["added_by"] for product in products}
-
-    # Get unique seller information from the users list
-    sellers = [user for user in users if user["username"] in seller_usernames]
+    seller_usernames = set(products_collection.distinct("added_by"))
+    sellers = list(users_collection.find({"username": {"$in": list(seller_usernames)}}))
 
     return templates.TemplateResponse("sellers.html", {
         "request": request,
@@ -204,14 +157,13 @@ async def list_sellers(request: Request):
 async def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-
 @app.post("/login")
 async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
-    for user in users:
-        if user["username"] == username and user["password"] == password:
-            response = RedirectResponse("/", status_code=303)
-            response.set_cookie(key="username", value=username)
-            return response
+    user = users_collection.find_one({"username": username, "password": password})
+    if user:
+        response = RedirectResponse("/", status_code=303)
+        response.set_cookie(key="username", value=username)
+        return response
 
     error_message = "Invalid username or password"
     return templates.TemplateResponse("login.html", {
@@ -219,7 +171,6 @@ async def login(request: Request, response: Response, username: str = Form(...),
         "error_message": error_message,
         "username": username
     })
-
 
 @app.get("/logout", response_class=HTMLResponse)
 async def logout(response: Response):
@@ -233,12 +184,10 @@ async def seller_profile(request: Request, username: str):
     if not current_username:
         return RedirectResponse("/login", status_code=303)
 
-    # Find the seller
-    seller = next((user for user in users if user["username"] == username), None)
+    seller = users_collection.find_one({"username": username})
     if not seller:
         raise HTTPException(status_code=404, detail="Seller not found")
 
-    # Calculate average rating if ratings exist
     ratings = seller.get("ratings", [])
     average_rating = round(sum(ratings) / len(ratings), 2) if ratings else "No ratings yet"
 
@@ -255,32 +204,27 @@ async def review_seller(request: Request, username: str = Form(...), review: str
     if not current_username:
         return RedirectResponse("/login", status_code=303)
 
-    # Prevent reviewing oneself
     if current_username == username:
         raise HTTPException(status_code=400, detail="You cannot review yourself.")
 
-    # Find the seller being reviewed
-    seller = next((user for user in users if user["username"] == username), None)
+    seller = users_collection.find_one({"username": username})
     if not seller:
         raise HTTPException(status_code=404, detail="Seller not found")
 
-    # Ensure each user can only review a seller once
     existing_review = next((r for r in seller.get("reviews", []) if r["reviewer"] == current_username), None)
     if existing_review:
         raise HTTPException(status_code=400, detail="You have already reviewed this seller.")
 
-    # Add the review
-    seller["reviews"].append({"reviewer": current_username, "review": review, "rating": rating})
-    if "ratings" not in seller:
-        seller["ratings"] = []
-    seller["ratings"].append(rating)
-
-    # Save the updated user data
-    save_users(users)
+    new_review = {"reviewer": current_username, "review": review, "rating": rating}
+    users_collection.update_one(
+        {"username": username},
+        {
+            "$push": {"reviews": new_review, "ratings": rating},
+            "$set": {"average_rating": {"$avg": "$ratings"}}
+        }
+    )
 
     return RedirectResponse(f"/seller-profile/{username}", status_code=303)
-
-# Rest of your code remains unchanged...
 
 @app.get("/add-product", response_class=HTMLResponse)
 async def add_product_form(request: Request):
@@ -300,57 +244,44 @@ async def add_product(
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    # Handle Image File Upload
     upload_dir = STATIC_DIR / "uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)  # Ensure the upload directory exists
+    upload_dir.mkdir(parents=True, exist_ok=True)
     image_path = upload_dir / image_file.filename
 
-    # Save the uploaded file to the static/uploads directory
     with open(image_path, "wb") as buffer:
         shutil.copyfileobj(image_file.file, buffer)
     image = f"/static/uploads/{image_file.filename}"
 
-    # Create a new product dictionary
     new_product = {
-        "id": len(products) + 1,
         "name": name,
         "price": price,
         "image": image,
-        "added_by": username  # Store the username of the user who added the product
+        "added_by": username
     }
 
-    # Add product to the list and save it
-    products.append(new_product)
-    save_products(products)
+    products_collection.insert_one(new_product)
 
     return RedirectResponse("/", status_code=303)
 
 @app.get("/profile", response_class=HTMLResponse)
 async def profile(request: Request, username: str = None):
-    # If no username is provided, use the logged-in user's username
     if not username:
         username = request.cookies.get("username")
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    # Find the user
-    user = next((user for user in users if user["username"] == username), None)
+    user = users_collection.find_one({"username": username})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Calculate average rating if ratings exist
     ratings = user.get("ratings", [])
     average_rating = round(sum(ratings) / len(ratings), 2) if ratings else "No ratings yet"
-
-    # Get user email and description
-    user_email = user.get("email", "Not provided")
-    user_description = user.get("description", "No description added yet.")
 
     return templates.TemplateResponse("profile.html", {
         "request": request,
         "username": username,
-        "user_email": user_email,
-        "user_description": user_description,
+        "user_email": user.get("email", "Not provided"),
+        "user_description": user.get("description", "No description added yet."),
         "average_rating": average_rating,
         "user_reviews": user.get("reviews", [])
     })
@@ -361,7 +292,7 @@ async def edit_profile(request: Request):
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    user = next((user for user in users if user["username"] == username), None)
+    user = users_collection.find_one({"username": username})
     user_email = user.get("email", "example@example.com") if user else "example@example.com"
 
     return templates.TemplateResponse("edit_profile.html", {
@@ -376,17 +307,12 @@ async def edit_profile_post(request: Request, username: str = Form(...), email: 
     if not current_username:
         return RedirectResponse("/login", status_code=303)
 
-    # Update user information logic here
-    for user in users:
-        if user["username"] == current_username:
-            user["username"] = username
-            # Update email if changed, assuming it still meets requirements
-            if email.endswith("@mail.utoronto.ca"):
-                user["email"] = email
-            save_users(users)
-            break
+    if email.endswith("@mail.utoronto.ca"):
+        users_collection.update_one(
+            {"username": current_username},
+            {"$set": {"username": username, "email": email}}
+        )
 
-    # Update the cookie with the new username if it has changed
     response = RedirectResponse("/profile", status_code=303)
     response.set_cookie(key="username", value=username)
     return response
@@ -397,54 +323,35 @@ async def rate_user(request: Request, username: str = Form(...), rating: int = F
     if not current_username:
         raise HTTPException(status_code=403, detail="You must be logged in to leave a review.")
 
-    # Prevent users from rating themselves
     if username == current_username:
         raise HTTPException(status_code=400, detail="You cannot rate yourself.")
 
-    # Ensure the rating is between 1 and 5
     if not (1 <= rating <= 5):
         raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
 
-    # Find the user being rated
-    user = next((user for user in users if user["username"] == username), None)
+    user = users_collection.find_one({"username": username})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Add or update the rating and review
-    if "reviews" not in user:
-        user["reviews"] = []
-
-    # Check if the current user already reviewed this seller
-    existing_review = next((r for r in user["reviews"] if r["reviewer"] == current_username), None)
-    if existing_review:
-        # Update the existing review
-        existing_review["review"] = review
-        existing_review["rating"] = rating
-    else:
-        # Add a new review
-        user["reviews"].append({
-            "reviewer": current_username,
-            "review": review,
-            "rating": rating
-        })
-
-    # Calculate average rating
-    user["ratings"] = [r["rating"] for r in user["reviews"]]
-    user["average_rating"] = round(sum(user["ratings"]) / len(user["ratings"]), 2) if user["ratings"] else "No ratings yet"
-
-    # Save the updated users
-    save_users(users)
+    new_review = {"reviewer": current_username, "review": review, "rating": rating}
+    users_collection.update_one(
+        {"username": username},
+        {
+            "$push": {"reviews": new_review, "ratings": rating},
+            "$set": {"average_rating": {"$avg": "$ratings"}}
+        }
+    )
 
     return RedirectResponse(f"/profile?username={username}", status_code=303)
 
-# Shopping cart mechanism
 @app.get("/cart", response_class=HTMLResponse)
 async def view_cart(request: Request):
     username = request.cookies.get("username")
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    cart_items = carts.get(username, [])
+    cart = carts_collection.find_one({"username": username})
+    cart_items = cart["items"] if cart else []
     return templates.TemplateResponse("cart.html", {
         "request": request,
         "cart_items": cart_items,
@@ -453,46 +360,46 @@ async def view_cart(request: Request):
 
 @app.post("/clear-userbase", response_class=HTMLResponse)
 async def clear_userbase(request: Request):
-    # Relaxed security: no strict authentication check for now
-    # Warning: This should NOT be used in a production environment
+    products_collection.delete_many({})
+    users_collection.delete_many({})
+    carts_collection.delete_many({})
 
-    # Clear the JSON files (reset the databases)
-    paths_to_clear = [USER_FILE, PRODUCT_FILE, CART_FILE]
-    for path in paths_to_clear:
-        with open(path, "w") as f:
-            if path == CART_FILE:
-                json.dump({}, f, indent=4)  # Clear carts as an empty dictionary
-            else:
-                json.dump([], f, indent=4)  # Clear users and products as empty lists
-
-    # Clear the uploads directory
     if UPLOAD_DIR.exists():
         for file in UPLOAD_DIR.iterdir():
             if file.is_file():
-                file.unlink()  # Delete each file
+                file.unlink()
             elif file.is_dir():
-                shutil.rmtree(file)  # Delete any subdirectories
+                shutil.rmtree(file)
 
     return HTMLResponse(content="All databases and uploads have been cleared successfully.", status_code=200)
 
 @app.post("/add-to-cart", response_class=HTMLResponse)
-async def add_to_cart(request: Request, product_id: int = Form(...)):
+async def add_to_cart(request: Request, product_id: str = Form(...)):
     username = request.cookies.get("username")
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    # Add product to user's cart only if it isn't already there
-    if username not in carts:
-        carts[username] = []
-
-    product = next((product for product in products if product["id"] == product_id), None)
+    product = products_collection.find_one({"_id": ObjectId(product_id)})
     if product:
-        # Check if the product is already in the user's cart
-        if product_id not in [item["id"] for item in carts[username]]:
-            carts[username].append(product)
-            save_carts(carts)
+        carts_collection.update_one(
+            {"username": username},
+            {"$addToSet": {"items": product}},
+            upsert=True
+        )
 
-    # Redirect to the cart page after adding the product
+    return RedirectResponse("/cart", status_code=303)
+
+@app.post("/remove-from-cart", response_class=HTMLResponse)
+async def remove_from_cart(request: Request, product_id: str = Form(...)):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    carts_collection.update_one(
+        {"username": username},
+        {"$pull": {"items": {"_id": ObjectId(product_id)}}}
+    )
+
     return RedirectResponse("/cart", status_code=303)
 
 @app.post("/edit-description")
@@ -501,26 +408,24 @@ async def edit_description(request: Request, description: str = Form(...)):
     if not current_username:
         return RedirectResponse("/login", status_code=303)
 
-    # Update the user's description
-    for user in users:
-        if user["username"] == current_username:
-            user["description"] = description
-            save_users(users)
-            break
+    users_collection.update_one(
+        {"username": current_username},
+        {"$set": {"description": description}}
+    )
 
-    # Redirect back to the profile page after updating
     return RedirectResponse(f"/profile?username={current_username}", status_code=303)
 
-@app.post("/remove-from-cart", response_class=HTMLResponse)
-async def remove_from_cart(request: Request, product_id: int = Form(...)):
-    username = request.cookies.get("username")
-    if not username:
-        return RedirectResponse("/login", status_code=303)
+# Error handling
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc: HTTPException):
+    return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
 
-    # Remove product from user's cart
-    if username in carts:
-        carts[username] = [item for item in carts[username] if item["id"] != product_id]
-        save_carts(carts)
+@app.exception_handler(500)
+async def server_error_exception_handler(request: Request, exc: HTTPException):
+    return templates.TemplateResponse("500.html", {"request": request}, status_code=500)
 
-    # Redirect to the cart page after removing the product
-    return RedirectResponse("/cart", status_code=303)
+# Run the application
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
