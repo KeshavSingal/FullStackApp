@@ -174,7 +174,10 @@ async def register_user(request: Request, username: str = Form(...), password: s
     users.append({
         "username": username,
         "password": password,  # Note: Passwords should be hashed for security reasons
-        "email": email
+        "email": email,
+        "reviews": [],  # New field to store reviews for each seller
+        "ratings": [],
+        "description": "No description added yet."
     })
     save_users(users)
 
@@ -184,6 +187,18 @@ async def register_user(request: Request, username: str = Form(...), password: s
 
     return RedirectResponse("/", status_code=303)
 
+@app.get("/sellers", response_class=HTMLResponse)
+async def list_sellers(request: Request):
+    # Extract sellers from the list of products
+    seller_usernames = {product["added_by"] for product in products}
+
+    # Get unique seller information from the users list
+    sellers = [user for user in users if user["username"] in seller_usernames]
+
+    return templates.TemplateResponse("sellers.html", {
+        "request": request,
+        "sellers": sellers
+    })
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
@@ -211,6 +226,61 @@ async def logout(response: Response):
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("username")
     return response
+
+@app.get("/seller-profile/{username}", response_class=HTMLResponse)
+async def seller_profile(request: Request, username: str):
+    current_username = request.cookies.get("username")
+    if not current_username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Find the seller
+    seller = next((user for user in users if user["username"] == username), None)
+    if not seller:
+        raise HTTPException(status_code=404, detail="Seller not found")
+
+    # Calculate average rating if ratings exist
+    ratings = seller.get("ratings", [])
+    average_rating = round(sum(ratings) / len(ratings), 2) if ratings else "No ratings yet"
+
+    return templates.TemplateResponse("seller_profile.html", {
+        "request": request,
+        "seller": seller,
+        "username": current_username,
+        "average_rating": average_rating
+    })
+
+@app.post("/review-seller")
+async def review_seller(request: Request, username: str = Form(...), review: str = Form(...), rating: int = Form(...)):
+    current_username = request.cookies.get("username")
+    if not current_username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Prevent reviewing oneself
+    if current_username == username:
+        raise HTTPException(status_code=400, detail="You cannot review yourself.")
+
+    # Find the seller being reviewed
+    seller = next((user for user in users if user["username"] == username), None)
+    if not seller:
+        raise HTTPException(status_code=404, detail="Seller not found")
+
+    # Ensure each user can only review a seller once
+    existing_review = next((r for r in seller.get("reviews", []) if r["reviewer"] == current_username), None)
+    if existing_review:
+        raise HTTPException(status_code=400, detail="You have already reviewed this seller.")
+
+    # Add the review
+    seller["reviews"].append({"reviewer": current_username, "review": review, "rating": rating})
+    if "ratings" not in seller:
+        seller["ratings"] = []
+    seller["ratings"].append(rating)
+
+    # Save the updated user data
+    save_users(users)
+
+    return RedirectResponse(f"/seller-profile/{username}", status_code=303)
+
+# Rest of your code remains unchanged...
 
 @app.get("/add-product", response_class=HTMLResponse)
 async def add_product_form(request: Request):
