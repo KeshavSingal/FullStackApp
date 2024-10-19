@@ -1,28 +1,22 @@
 import os
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
-import logging
+from bson import ObjectId
+from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+import shutil
+from pathlib import Path
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app = FastAPI()
 
 # MongoDB setup
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority")
-
-if not MONGO_URI:
-    logger.error("MONGO_URI environment variable is not set")
-    raise ValueError("MONGO_URI environment variable is not set")
-
-try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    # The ismaster command is cheap and does not require auth.
-    client.admin.command('ismaster')
-    logger.info("Successfully connected to MongoDB")
-except ConnectionFailure:
-    logger.error("Failed to connect to MongoDB")
-    raise HTTPException(status_code=500, detail="Failed to connect to MongoDB. Please check your connection.")
-
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+client = MongoClient(MONGO_URI)
 db = client["marketplace_db"]
 products_collection = db["products"]
 users_collection = db["users"]
@@ -34,7 +28,6 @@ ROOT_DIR = Path(__file__).parent.parent
 # Define paths to static and template folders
 STATIC_DIR = ROOT_DIR / "frontend" / "static"
 TEMPLATE_DIR = ROOT_DIR / "frontend" / "templates"
-UPLOAD_DIR = STATIC_DIR / "uploads"
 
 # Check if static and templates directories exist
 if not STATIC_DIR.exists():
@@ -49,13 +42,15 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Set up templates
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
+UPLOAD_DIR = STATIC_DIR / "uploads"
+
 # OTP Management
 OTP_STORE = {}
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_EMAIL = os.getenv("SMTP_EMAIL", "your-email@example.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "your-email-password")
+SMTP_EMAIL = "keshavjindal2k19@gmail.com"  # Replace with your email
+SMTP_PASSWORD = "qdzn xhtg vydw ncgy"
 
 def send_otp(email: str, otp: str):
     try:
@@ -72,7 +67,7 @@ def send_otp(email: str, otp: str):
         server.sendmail(SMTP_EMAIL, email, msg.as_string())
         server.quit()
     except Exception as e:
-        logger.error(f"Failed to send OTP: {e}")
+        print(f"Failed to send OTP: {e}")
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
 
 @app.post("/generate-otp")
@@ -86,7 +81,6 @@ async def generate_otp(email: str = Form(...)):
     try:
         send_otp(email, otp)
     except Exception as e:
-        logger.error(f"Failed to send OTP: {e}")
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
 
     return {"message": "OTP sent to your email."}
@@ -94,8 +88,6 @@ async def generate_otp(email: str = Form(...)):
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
     username = request.cookies.get("username")
-    logger.info(f"Received request for home page. Username: {username}")
-    
     cart = carts_collection.find_one({"username": username})
     cart_count = len(cart["items"]) if cart else 0
     
@@ -436,4 +428,3 @@ async def server_error_exception_handler(request: Request, exc: HTTPException):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
