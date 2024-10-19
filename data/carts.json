@@ -1,0 +1,42 @@
+{
+    "Hey": [
+        {
+            "id": 2,
+            "name": "English Gr. 6-8",
+            "price": 90,
+            "image": "https://picsum.photos/200/300?random=2"
+        },
+        {
+            "id": 3,
+            "name": "Science Gr. 6-8",
+            "price": 110,
+            "image": "https://picsum.photos/200/300?random=3"
+        },
+        {
+            "id": 3,
+            "name": "Science Gr. 6-8",
+            "price": 110,
+            "image": "https://picsum.photos/200/300?random=3"
+        }
+    ],
+    "Keshav": [
+        {
+            "id": 3,
+            "name": "Science Gr. 6-8",
+            "price": 110,
+            "image": "https://picsum.photos/200/300?random=3"
+        },
+        {
+            "id": 4,
+            "name": "Computers Gr. 6-8",
+            "price": 120,
+            "image": "https://picsum.photos/200/300?random=4"
+        },
+        {
+            "id": 5,
+            "name": "Keshav",
+            "price": 22.0,
+            "image": "https://picsum.photos/200/300"
+        }
+    ]
+}

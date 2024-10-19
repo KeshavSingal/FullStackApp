@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="my-4 text-center">Your Shopping Cart</h2>
+
+{% if cart_items %}
+    <div class="row">
+        {% for item in cart_items %}
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <img src="{{ item.image }}" class="card-img-top" alt="{{ item.name }}" style="max-height: 300px; object-fit: cover;">
+                <div class="card-body">
+                    <h5 class="card-title">{{ item.name }}</h5>
+                    <p class="card-text">${{ item.price }}</p>
+                    <form method="post" action="/remove-from-cart">
+                        <input type="hidden" name="product_id" value="{{ item.id }}">
+                        <button type="submit" class="btn btn-danger">Remove from Cart</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>Your cart is empty.</p>
+{% endif %}
+{% endblock %}
