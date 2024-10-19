@@ -2,10 +2,14 @@
 
 {% block content %}
 <h2 class="my-4">Add a New Product</h2>
-<form method="post" action="/add-product" class="form-group">
+<form method="post" action="/add-product" enctype="multipart/form-data" class="form-group">
     <input type="text" name="name" placeholder="Product Name" class="form-control mb-2" required>
     <input type="number" step="0.01" name="price" placeholder="Price" class="form-control mb-2" required>
-    <input type="text" name="image" placeholder="Image URL" class="form-control mb-2" required>
+
+    <!-- Image File Upload -->
+    <label for="image-file">Upload Product Image:</label>
+    <input type="file" name="image_file" id="image-file" class="form-control mb-3" required>
+
     <button type="submit" class="btn btn-primary">Add Product</button>
 </form>
 {% endblock %}

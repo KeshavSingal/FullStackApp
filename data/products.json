@@ -40,5 +40,40 @@
         "name": "Keshav",
         "price": 123.0,
         "image": "https://picsum.photos/200/300"
+    },
+    {
+        "id": 8,
+        "name": "Keshav",
+        "price": 22.0,
+        "image": "/static/uploads/Screenshot 2024-10-18 at 2.25.15\u202fPM.png",
+        "added_by": "Hey"
+    },
+    {
+        "id": 9,
+        "name": "Cool this works",
+        "price": 333.0,
+        "image": "/static/uploads/Screenshot 2024-10-18 at 10.25.32\u202fPM.png",
+        "added_by": "Keshav"
+    },
+    {
+        "id": 10,
+        "name": "Cool this works",
+        "price": 123.0,
+        "image": "/static/uploads/Screenshot 2024-10-18 at 2.23.24\u202fPM.png",
+        "added_by": "Keshav"
+    },
+    {
+        "id": 11,
+        "name": "Heyw",
+        "price": 112.0,
+        "image": "/static/uploads/Screenshot 2024-10-18 at 1.48.57\u202fPM.png",
+        "added_by": "Keshav"
+    },
+    {
+        "id": 12,
+        "name": "Keshav",
+        "price": 33.0,
+        "image": "/static/uploads/Screenshot 2024-10-18 at 10.13.41\u202fPM.png",
+        "added_by": "Keshav"
     }
 ]

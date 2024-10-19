@@ -1,9 +1,10 @@
 import json
 from pathlib import Path
-from fastapi import FastAPI, Request, Form, HTTPException, Response, Query
+from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+import shutil
 import os
 
 app = FastAPI()
@@ -28,10 +29,11 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Set up templates
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
-# File paths for product storage and carts
+# File paths for product storage, user data, and carts
 PRODUCT_FILE = ROOT_DIR / "data" / "products.json"
 USER_FILE = ROOT_DIR / "data" / "users.json"
 CART_FILE = ROOT_DIR / "data" / "carts.json"
+
 
 # Helper functions to load and save data
 def load_products():
@@ -40,9 +42,11 @@ def load_products():
             return json.load(f)
     return []
 
+
 def save_products(data):
     with open(PRODUCT_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
 
 def load_users():
     if USER_FILE.exists():
@@ -50,9 +54,11 @@ def load_users():
             return json.load(f)
     return []
 
+
 def save_users(data):
     with open(USER_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
 
 def load_carts():
     if CART_FILE.exists():
@@ -60,13 +66,16 @@ def load_carts():
             return json.load(f)
     return {}
 
+
 def save_carts(data):
     with open(CART_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
+
 products = load_products()
 users = load_users()
 carts = load_carts()
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
@@ -82,9 +91,11 @@ async def home(request: Request, search: str = Query("", min_length=0)):
         "cart_count": cart_count
     })
 
+
 @app.get("/register", response_class=HTMLResponse)
 async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
+
 
 @app.post("/register")
 async def register_user(username: str = Form(...), password: str = Form(...)):
@@ -95,9 +106,11 @@ async def register_user(username: str = Form(...), password: str = Form(...)):
     save_users(users)
     return RedirectResponse("/", status_code=303)
 
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
 
 @app.post("/login")
 async def login(response: Response, username: str = Form(...), password: str = Form(...)):
@@ -108,11 +121,13 @@ async def login(response: Response, username: str = Form(...), password: str = F
             return response
     raise HTTPException(status_code=400, detail="Invalid username or password")
 
+
 @app.get("/logout", response_class=HTMLResponse)
 async def logout(response: Response):
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("username")
     return response
+
 
 @app.get("/add-product", response_class=HTMLResponse)
 async def add_product_form(request: Request):
@@ -120,6 +135,43 @@ async def add_product_form(request: Request):
     if not username:
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse("add_product.html", {"request": request, "username": username})
+
+
+@app.post("/add-product")
+async def add_product(
+        name: str = Form(...),
+        price: float = Form(...),
+        image_file: UploadFile = File(...),
+        request: Request = None
+):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Handle Image File Upload
+    upload_dir = STATIC_DIR / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)  # Ensure the upload directory exists
+    image_path = upload_dir / image_file.filename
+
+    # Save the uploaded file to the static/uploads directory
+    with open(image_path, "wb") as buffer:
+        shutil.copyfileobj(image_file.file, buffer)
+    image = f"/static/uploads/{image_file.filename}"
+
+    # Create a new product dictionary
+    new_product = {
+        "id": len(products) + 1,
+        "name": name,
+        "price": price,
+        "image": image,
+        "added_by": username  # Store the username of the user who added the product
+    }
+
+    # Add product to the list and save it
+    products.append(new_product)
+    save_products(products)
+
+    return RedirectResponse("/", status_code=303)
 
 
 @app.get("/profile", response_class=HTMLResponse)
@@ -184,6 +236,7 @@ async def edit_profile_post(request: Request, username: str = Form(...), email: 
     response.set_cookie(key="username", value=username)
     return response
 
+
 @app.post("/rate-user")
 async def rate_user(request: Request, username: str = Form(...), rating: int = Form(...)):
     if not (1 <= rating <= 5):
@@ -204,20 +257,6 @@ async def rate_user(request: Request, username: str = Form(...), rating: int = F
 
     return RedirectResponse(f"/profile?username={username}", status_code=303)
 
-@app.post("/add-product")
-async def add_product(name: str = Form(...), price: float = Form(...), image: str = Form(...), request: Request = None):
-    username = request.cookies.get("username")
-    if not username:
-        return RedirectResponse("/login", status_code=303)
-    new_product = {
-        "id": len(products) + 1,
-        "name": name,
-        "price": price,
-        "image": image
-    }
-    products.append(new_product)
-    save_products(products)
-    return RedirectResponse("/", status_code=303)
 
 # Shopping cart mechanism
 @app.get("/cart", response_class=HTMLResponse)
@@ -233,23 +272,27 @@ async def view_cart(request: Request):
         "username": username
     })
 
+
 @app.post("/add-to-cart", response_class=HTMLResponse)
 async def add_to_cart(request: Request, product_id: int = Form(...)):
     username = request.cookies.get("username")
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    # Add product to user's cart
+    # Add product to user's cart only if it isn't already there
     if username not in carts:
         carts[username] = []
 
     product = next((product for product in products if product["id"] == product_id), None)
     if product:
-        carts[username].append(product)
-    save_carts(carts)
+        # Check if the product is already in the user's cart
+        if product_id not in [item["id"] for item in carts[username]]:
+            carts[username].append(product)
+            save_carts(carts)
 
     # Redirect to the cart page after adding the product
     return RedirectResponse("/cart", status_code=303)
+
 
 @app.post("/remove-from-cart", response_class=HTMLResponse)
 async def remove_from_cart(request: Request, product_id: int = Form(...)):
@@ -257,7 +300,7 @@ async def remove_from_cart(request: Request, product_id: int = Form(...)):
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    # Remove product from user's cartxq
+    # Remove product from user's cart
     if username in carts:
         carts[username] = [item for item in carts[username] if item["id"] != product_id]
         save_carts(carts)
