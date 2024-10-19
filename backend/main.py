@@ -1,34 +1,26 @@
 import os
-from pymongo import MongoClient, ssl_support
-from bson import ObjectId
-from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-import shutil
-from pathlib import Path
-import random
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 import logging
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+# MongoDB setup
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority")
 
-# MongoDB setup with SSL configuration
-MONGO_URI = "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority"
-logger.info(f"Connecting to MongoDB with URI: {MONGO_URI}")
+if not MONGO_URI:
+    logger.error("MONGO_URI environment variable is not set")
+    raise ValueError("MONGO_URI environment variable is not set")
 
 try:
-    client = MongoClient(MONGO_URI, ssl=True, ssl_cert_reqs=ssl_support.CERT_NONE)
-    client.admin.command('ping')
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # The ismaster command is cheap and does not require auth.
+    client.admin.command('ismaster')
     logger.info("Successfully connected to MongoDB")
-except Exception as e:
-    logger.error(f"Failed to connect to MongoDB: {e}")
+except ConnectionFailure:
+    logger.error("Failed to connect to MongoDB")
     raise HTTPException(status_code=500, detail="Failed to connect to MongoDB. Please check your connection.")
 
 db = client["marketplace_db"]
