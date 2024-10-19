@@ -1,4 +1,11 @@
 {
-    "Hey": [],
-    "Keshav": []
+    "Keshav": [
+        {
+            "id": 2,
+            "name": "Product 2",
+            "price": 444.0,
+            "image": "/static/uploads/Screenshot 2024-10-18 at 10.25.32\u202fPM.png",
+            "added_by": "Keshav"
+        }
+    ]
 }

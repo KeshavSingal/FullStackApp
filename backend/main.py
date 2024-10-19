@@ -98,12 +98,25 @@ async def register_form(request: Request):
 
 
 @app.post("/register")
-async def register_user(username: str = Form(...), password: str = Form(...)):
-    # Check if the user already exists
+async def register_user(username: str = Form(...), password: str = Form(...), email: str = Form(...)):
+    # Validate that the email is from the University of Toronto
+    if not email.endswith("@mail.utoronto.ca"):
+        raise HTTPException(status_code=400, detail="Only University of Toronto email addresses are allowed.")
+
+    # Check if the username or email already exists
     if any(user["username"] == username for user in users):
         raise HTTPException(status_code=400, detail="Username already exists.")
-    users.append({"username": username, "password": password})
+    if any(user.get("email") == email for user in users):
+        raise HTTPException(status_code=400, detail="Email already registered.")
+
+    # Register the user
+    users.append({
+        "username": username,
+        "password": password,  # Note: Passwords should be hashed for security reasons
+        "email": email
+    })
     save_users(users)
+
     return RedirectResponse("/", status_code=303)
 
 
@@ -207,7 +220,8 @@ async def edit_profile(request: Request):
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    user_email = "example@example.com"  # Replace with actual email lookup if available
+    user = next((user for user in users if user["username"] == username), None)
+    user_email = user.get("email", "example@example.com") if user else "example@example.com"
 
     return templates.TemplateResponse("edit_profile.html", {
         "request": request,
@@ -226,8 +240,9 @@ async def edit_profile_post(request: Request, username: str = Form(...), email: 
     for user in users:
         if user["username"] == current_username:
             user["username"] = username
-            # Assuming email field is added
-            user["email"] = email
+            # Update email if changed, assuming it still meets requirements
+            if email.endswith("@mail.utoronto.ca"):
+                user["email"] = email
             save_users(users)
             break
 
