@@ -6,6 +6,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import shutil
 import os
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = FastAPI()
 
@@ -35,6 +39,7 @@ USER_FILE = ROOT_DIR / "data" / "users.json"
 CART_FILE = ROOT_DIR / "data" / "carts.json"
 UPLOAD_DIR = STATIC_DIR / "uploads"
 
+
 # Helper functions to load and save data
 def load_products():
     if PRODUCT_FILE.exists():
@@ -42,9 +47,11 @@ def load_products():
             return json.load(f)
     return []
 
+
 def save_products(data):
     with open(PRODUCT_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
 
 def load_users():
     if USER_FILE.exists():
@@ -52,9 +59,11 @@ def load_users():
             return json.load(f)
     return []
 
+
 def save_users(data):
     with open(USER_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
 
 def load_carts():
     if CART_FILE.exists():
@@ -62,37 +71,59 @@ def load_carts():
             return json.load(f)
     return {}
 
+
 def save_carts(data):
     with open(CART_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
 
 products = load_products()
 users = load_users()
 carts = load_carts()
 
-@app.post("/clear-userbase", response_class=HTMLResponse)
-async def clear_userbase(request: Request):
-    # Relaxed security: no strict authentication check for now
-    # Warning: This should NOT be used in a production environment
+# OTP Management
+OTP_STORE = {}
 
-    # Clear the JSON files (reset the databases)
-    paths_to_clear = [USER_FILE, PRODUCT_FILE, CART_FILE]
-    for path in paths_to_clear:
-        with open(path, "w") as f:
-            if path == CART_FILE:
-                json.dump({}, f, indent=4)  # Clear carts as an empty dictionary
-            else:
-                json.dump([], f, indent=4)  # Clear users and products as empty lists
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = "keshavjindal2k19@gmail.com"  # Replace with your email
+SMTP_PASSWORD = "qdzn xhtg vydw ncgy"
 
-    # Clear the uploads directory
-    if UPLOAD_DIR.exists():
-        for file in UPLOAD_DIR.iterdir():
-            if file.is_file():
-                file.unlink()  # Delete each file
-            elif file.is_dir():
-                shutil.rmtree(file)  # Delete any subdirectories
 
-    return HTMLResponse(content="All databases and uploads have been cleared successfully.", status_code=200)
+def send_otp(email: str, otp: str):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_EMAIL
+        msg['To'] = email
+        msg['Subject'] = "Your OTP for Registration"
+        body = f"Your OTP for registration is: {otp}"
+        msg.attach(MIMEText(body, 'plain'))
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+        server.sendmail(SMTP_EMAIL, email, msg.as_string())
+        server.quit()
+    except Exception as e:
+        print(f"Failed to send OTP: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
+
+
+@app.post("/generate-otp")
+async def generate_otp(email: str = Form(...)):
+    if not email.endswith("@mail.utoronto.ca"):
+        raise HTTPException(status_code=400, detail="Only University of Toronto email addresses are allowed.")
+
+    otp = str(random.randint(100000, 999999))  # Generate a 6-digit OTP
+    OTP_STORE[email] = otp  # Store OTP temporarily
+
+    try:
+        send_otp(email, otp)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
+
+    return {"message": "OTP sent to your email."}
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
@@ -108,18 +139,23 @@ async def home(request: Request, search: str = Query("", min_length=0)):
         "cart_count": cart_count
     })
 
+
 @app.get("/register", response_class=HTMLResponse)
 async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
+
 @app.post("/register")
-async def register_user(request: Request, username: str = Form(...), password: str = Form(...), email: str = Form(...)):
+async def register_user(request: Request, username: str = Form(...), password: str = Form(...), email: str = Form(...),
+                        otp: str = Form(...)):
     error_message = None
 
     # Validate that the email is from the University of Toronto
     if not email.endswith("@mail.utoronto.ca"):
         error_message = "Only University of Toronto email addresses are allowed."
-
+    # Validate OTP
+    elif email not in OTP_STORE or OTP_STORE[email] != otp:
+        error_message = "Invalid OTP. Please try again."
     # Check if the username or email already exists
     elif any(user["username"] == username for user in users):
         error_message = "Username already exists."
@@ -142,11 +178,17 @@ async def register_user(request: Request, username: str = Form(...), password: s
     })
     save_users(users)
 
+    # Remove OTP after successful registration
+    if email in OTP_STORE:
+        del OTP_STORE[email]
+
     return RedirectResponse("/", status_code=303)
+
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
 
 @app.post("/login")
 async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
@@ -162,6 +204,7 @@ async def login(request: Request, response: Response, username: str = Form(...),
         "error_message": error_message,
         "username": username
     })
+
 
 @app.get("/logout", response_class=HTMLResponse)
 async def logout(response: Response):
