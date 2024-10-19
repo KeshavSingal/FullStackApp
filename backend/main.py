@@ -121,6 +121,89 @@ async def add_product_form(request: Request):
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse("add_product.html", {"request": request, "username": username})
 
+
+@app.get("/profile", response_class=HTMLResponse)
+async def profile(request: Request, username: str = None):
+    # If no username is provided, use the logged-in user's username
+    if not username:
+        username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Find the user
+    user = next((user for user in users if user["username"] == username), None)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Calculate average rating if ratings exist
+    ratings = user.get("ratings", [])
+    average_rating = round(sum(ratings) / len(ratings), 2) if ratings else "No ratings yet"
+
+    user_email = user.get("email", "Not provided")
+
+    return templates.TemplateResponse("profile.html", {
+        "request": request,
+        "username": username,
+        "user_email": user_email,
+        "average_rating": average_rating
+    })
+
+
+@app.get("/edit-profile", response_class=HTMLResponse)
+async def edit_profile(request: Request):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    user_email = "example@example.com"  # Replace with actual email lookup if available
+
+    return templates.TemplateResponse("edit_profile.html", {
+        "request": request,
+        "username": username,
+        "user_email": user_email
+    })
+
+
+@app.post("/edit-profile")
+async def edit_profile_post(request: Request, username: str = Form(...), email: str = Form(...)):
+    current_username = request.cookies.get("username")
+    if not current_username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Update user information logic here
+    for user in users:
+        if user["username"] == current_username:
+            user["username"] = username
+            # Assuming email field is added
+            user["email"] = email
+            save_users(users)
+            break
+
+    # Update the cookie with the new username if it has changed
+    response = RedirectResponse("/profile", status_code=303)
+    response.set_cookie(key="username", value=username)
+    return response
+
+@app.post("/rate-user")
+async def rate_user(request: Request, username: str = Form(...), rating: int = Form(...)):
+    if not (1 <= rating <= 5):
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+
+    # Find the user being rated
+    user = next((user for user in users if user["username"] == username), None)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Add the rating
+    if "ratings" not in user:
+        user["ratings"] = []
+    user["ratings"].append(rating)
+
+    # Save the updated users
+    save_users(users)
+
+    return RedirectResponse(f"/profile?username={username}", status_code=303)
+
 @app.post("/add-product")
 async def add_product(name: str = Form(...), price: float = Form(...), image: str = Form(...), request: Request = None):
     username = request.cookies.get("username")
@@ -174,7 +257,7 @@ async def remove_from_cart(request: Request, product_id: int = Form(...)):
     if not username:
         return RedirectResponse("/login", status_code=303)
 
-    # Remove product from user's cart
+    # Remove product from user's cartxq
     if username in carts:
         carts[username] = [item for item in carts[username] if item["id"] != product_id]
         save_carts(carts)

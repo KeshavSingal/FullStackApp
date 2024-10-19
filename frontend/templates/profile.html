@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="my-4">User Profile</h2>
+<div class="card p-4">
+    <h4>Welcome, {{ username }}</h4>
+    <p class="my-3">Here are your details:</p>
+    <ul class="list-group mb-4">
+        <li class="list-group-item"><strong>Username:</strong> {{ username }}</li>
+        <li class="list-group-item"><strong>Email:</strong> {{ user_email }}</li>
+        <li class="list-group-item"><strong>Average Rating:</strong> {{ average_rating }}</li>
+    </ul>
+    <a href="/edit-profile" class="btn btn-primary">Edit Profile</a>
+
+    <hr class="my-4">
+
+    <!-- Rating Section -->
+    <h5>Rate This User</h5>
+    <form method="post" action="/rate-user" class="form-group">
+        <input type="hidden" name="username" value="{{ username }}">
+        <select name="rating" class="form-control mb-2" required>
+            <option value="">Select Rating</option>
+            <option value="1">1 Star</option>
+            <option value="2">2 Stars</option>
+            <option value="3">3 Stars</option>
+            <option value="4">4 Stars</option>
+            <option value="5">5 Stars</option>
+        </select>
+        <button type="submit" class="btn btn-success">Submit Rating</button>
+    </form>
+</div>
+{% endblock %}

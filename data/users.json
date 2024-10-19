@@ -1,6 +1,32 @@
 [
     {
+        "username": "john_doe",
+        "password": "hashed_password",
+        "email": "john@example.com",
+        "ratings": [
+            5,
+            4,
+            3,
+            5
+        ]
+    },
+    {
+        "username": "jane_doe",
+        "password": "hashed_password",
+        "email": "jane@example.com",
+        "ratings": [
+            4,
+            4
+        ]
+    },
+    {
         "username": "Keshav",
-        "password": "1234"
+        "password": "1234",
+        "ratings": [
+            3,
+            5,
+            3,
+            5
+        ]
     }
 ]

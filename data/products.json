@@ -34,5 +34,11 @@
         "name": "Cool this works",
         "price": 44.0,
         "image": "https://picsum.photos/200/300"
+    },
+    {
+        "id": 7,
+        "name": "Keshav",
+        "price": 123.0,
+        "image": "https://picsum.photos/200/300"
     }
 ]
