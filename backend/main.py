@@ -272,13 +272,17 @@ async def profile(request: Request, username: str = None):
     ratings = user.get("ratings", [])
     average_rating = round(sum(ratings) / len(ratings), 2) if ratings else "No ratings yet"
 
+    # Get user email and description
     user_email = user.get("email", "Not provided")
+    user_description = user.get("description", "No description added yet.")
 
     return templates.TemplateResponse("profile.html", {
         "request": request,
         "username": username,
         "user_email": user_email,
-        "average_rating": average_rating
+        "user_description": user_description,
+        "average_rating": average_rating,
+        "user_reviews": user.get("reviews", [])
     })
 
 @app.get("/edit-profile", response_class=HTMLResponse)
@@ -351,6 +355,30 @@ async def view_cart(request: Request):
         "username": username
     })
 
+@app.post("/clear-userbase", response_class=HTMLResponse)
+async def clear_userbase(request: Request):
+    # Relaxed security: no strict authentication check for now
+    # Warning: This should NOT be used in a production environment
+
+    # Clear the JSON files (reset the databases)
+    paths_to_clear = [USER_FILE, PRODUCT_FILE, CART_FILE]
+    for path in paths_to_clear:
+        with open(path, "w") as f:
+            if path == CART_FILE:
+                json.dump({}, f, indent=4)  # Clear carts as an empty dictionary
+            else:
+                json.dump([], f, indent=4)  # Clear users and products as empty lists
+
+    # Clear the uploads directory
+    if UPLOAD_DIR.exists():
+        for file in UPLOAD_DIR.iterdir():
+            if file.is_file():
+                file.unlink()  # Delete each file
+            elif file.is_dir():
+                shutil.rmtree(file)  # Delete any subdirectories
+
+    return HTMLResponse(content="All databases and uploads have been cleared successfully.", status_code=200)
+
 @app.post("/add-to-cart", response_class=HTMLResponse)
 async def add_to_cart(request: Request, product_id: int = Form(...)):
     username = request.cookies.get("username")
@@ -370,6 +398,22 @@ async def add_to_cart(request: Request, product_id: int = Form(...)):
 
     # Redirect to the cart page after adding the product
     return RedirectResponse("/cart", status_code=303)
+
+@app.post("/edit-description")
+async def edit_description(request: Request, description: str = Form(...)):
+    current_username = request.cookies.get("username")
+    if not current_username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Update the user's description
+    for user in users:
+        if user["username"] == current_username:
+            user["description"] = description
+            save_users(users)
+            break
+
+    # Redirect back to the profile page after updating
+    return RedirectResponse(f"/profile?username={current_username}", status_code=303)
 
 @app.post("/remove-from-cart", response_class=HTMLResponse)
 async def remove_from_cart(request: Request, product_id: int = Form(...)):
