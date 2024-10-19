@@ -392,7 +392,16 @@ async def edit_profile_post(request: Request, username: str = Form(...), email: 
     return response
 
 @app.post("/rate-user")
-async def rate_user(request: Request, username: str = Form(...), rating: int = Form(...)):
+async def rate_user(request: Request, username: str = Form(...), rating: int = Form(...), review: str = Form(...)):
+    current_username = request.cookies.get("username")
+    if not current_username:
+        raise HTTPException(status_code=403, detail="You must be logged in to leave a review.")
+
+    # Prevent users from rating themselves
+    if username == current_username:
+        raise HTTPException(status_code=400, detail="You cannot rate yourself.")
+
+    # Ensure the rating is between 1 and 5
     if not (1 <= rating <= 5):
         raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
 
@@ -401,10 +410,27 @@ async def rate_user(request: Request, username: str = Form(...), rating: int = F
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Add the rating
-    if "ratings" not in user:
-        user["ratings"] = []
-    user["ratings"].append(rating)
+    # Add or update the rating and review
+    if "reviews" not in user:
+        user["reviews"] = []
+
+    # Check if the current user already reviewed this seller
+    existing_review = next((r for r in user["reviews"] if r["reviewer"] == current_username), None)
+    if existing_review:
+        # Update the existing review
+        existing_review["review"] = review
+        existing_review["rating"] = rating
+    else:
+        # Add a new review
+        user["reviews"].append({
+            "reviewer": current_username,
+            "review": review,
+            "rating": rating
+        })
+
+    # Calculate average rating
+    user["ratings"] = [r["rating"] for r in user["reviews"]]
+    user["average_rating"] = round(sum(user["ratings"]) / len(user["ratings"]), 2) if user["ratings"] else "No ratings yet"
 
     # Save the updated users
     save_users(users)
