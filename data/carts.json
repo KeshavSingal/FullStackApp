@@ -1,43 +1,11 @@
 {
-    "Keshav": [
+    "Kes": [
         {
-            "id": 1,
+            "id": 2,
             "name": "Keshav",
-            "price": 123.0,
-            "image": "/static/uploads/Screenshot 2024-10-18 at 1.44.26\u202fPM.png",
-            "added_by": "Keshav"
-        },
-        {
-            "id": 2,
-            "name": "Cool this works",
-            "price": 333.0,
-            "image": "/static/uploads/Screenshot 2024-10-18 at 1.40.40\u202fPM.png",
-            "added_by": "Hey"
-        }
-    ],
-    "Hey": [
-        {
-            "id": 1,
-            "name": "Keshav",
-            "price": 123.0,
-            "image": "/static/uploads/Screenshot 2024-10-18 at 1.44.26\u202fPM.png",
-            "added_by": "Keshav"
-        },
-        {
-            "id": 2,
-            "name": "Cool this works",
-            "price": 333.0,
-            "image": "/static/uploads/Screenshot 2024-10-18 at 1.40.40\u202fPM.png",
-            "added_by": "Hey"
-        }
-    ],
-    "Keshav434": [
-        {
-            "id": 2,
-            "name": "Cool this works",
-            "price": 333.0,
-            "image": "/static/uploads/Screenshot 2024-10-18 at 1.40.40\u202fPM.png",
-            "added_by": "Hey"
+            "price": 23443.0,
+            "image": "/static/uploads/Screenshot 2024-10-19 at 12.33.46\u202fAM.png",
+            "added_by": "Kes"
         }
     ]
 }

@@ -1,32 +1,68 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="my-4">User Profile</h2>
-<div class="card p-4">
-    <h4>Welcome, {{ username }}</h4>
-    <p class="my-3">Here are your details:</p>
+<h2 class="my-4">{{ username }}'s Profile</h2>
+<div class="card p-4 profile-container">
+    <h4 class="card-title">Welcome, {{ username }}</h4>
+    <p class="card-text my-3">Here are your details:</p>
+
+    <!-- User Details -->
     <ul class="list-group mb-4">
         <li class="list-group-item"><strong>Username:</strong> {{ username }}</li>
         <li class="list-group-item"><strong>Email:</strong> {{ user_email }}</li>
         <li class="list-group-item"><strong>Average Rating:</strong> {{ average_rating }}</li>
     </ul>
-    <a href="/edit-profile" class="btn btn-primary">Edit Profile</a>
+
+    <!-- Description Section -->
+    <h5>Description</h5>
+    <p>{{ user_description }}</p>
+    {% if username == request.cookies.get('username') %}
+        <!-- Form to edit description -->
+        <form method="post" action="/edit-description" class="form-group mt-3">
+            <textarea name="description" placeholder="Add or edit your description here..." class="form-control mb-2">{{ user_description }}</textarea>
+            <button type="submit" class="btn btn-secondary">Update Description</button>
+        </form>
+    {% endif %}
 
     <hr class="my-4">
 
-    <!-- Rating Section -->
-    <h5>Rate This User</h5>
-    <form method="post" action="/rate-user" class="form-group">
-        <input type="hidden" name="username" value="{{ username }}">
-        <select name="rating" class="form-control mb-2" required>
-            <option value="">Select Rating</option>
-            <option value="1">1 Star</option>
-            <option value="2">2 Stars</option>
-            <option value="3">3 Stars</option>
-            <option value="4">4 Stars</option>
-            <option value="5">5 Stars</option>
-        </select>
-        <button type="submit" class="btn btn-success">Submit Rating</button>
-    </form>
+    <!-- Reviews Section -->
+    <h5>Reviews</h5>
+    {% if user_reviews %}
+        <div class="reviews-section">
+            <ul class="list-group">
+                {% for review in user_reviews %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span style="color: #007bff; font-weight: bold;">{{ review.reviewer }}</span>
+                            - {{ review.review }}
+                        </div>
+                        <span class="badge bg-primary rounded-pill">{{ review.rating }}/5</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% else %}
+        <p>No reviews yet.</p>
+    {% endif %}
+
+    <!-- Add Review Section -->
+    {% if username != request.cookies.get('username') %}
+        <h5 class="mt-4">Leave a Review:</h5>
+        <form method="post" action="/rate-user" class="form-group review-form">
+            <input type="hidden" name="username" value="{{ username }}">
+            <textarea name="review" placeholder="Write your review here..." class="form-control mb-2" required></textarea>
+            <label for="rating">Rating:</label>
+            <select name="rating" id="rating" class="form-control mb-2" required>
+                <option value="">Select Rating</option>
+                <option value="1">1 Star - Poor</option>
+                <option value="2">2 Stars - Fair</option>
+                <option value="3">3 Stars - Good</option>
+                <option value="4">4 Stars - Very Good</option>
+                <option value="5">5 Stars - Excellent</option>
+            </select>
+            <button type="submit" class="btn btn-success">Submit Review</button>
+        </form>
+    {% endif %}
 </div>
 {% endblock %}

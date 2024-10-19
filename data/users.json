@@ -1,17 +1,56 @@
 [
     {
         "username": "Keshav",
-        "password": "1234",
-        "email": "keshav.jindfdal@mail.utoronto.ca"
+        "password": "123",
+        "email": "keshav.jindal@mail.utoronto.ca",
+        "reviews": [
+            {
+                "reviewer": "Kes",
+                "review": "Nice\r\n",
+                "rating": 5
+            },
+            {
+                "reviewer": "Keser",
+                "review": "Nice!",
+                "rating": 4
+            }
+        ],
+        "ratings": [
+            5,
+            4
+        ],
+        "description": "Good ",
+        "average_rating": 4.5
     },
     {
-        "username": "Hey",
-        "password": "12345",
-        "email": "keshav.jind23al@mail.utoronto.ca"
+        "username": "Kes",
+        "password": "123",
+        "email": "keshav.jindal2@mail.utoronto.ca",
+        "reviews": [
+            {
+                "reviewer": "Keser",
+                "review": "decent",
+                "rating": 4
+            },
+            {
+                "reviewer": "Keshav",
+                "review": "This works well ",
+                "rating": 4
+            }
+        ],
+        "ratings": [
+            4,
+            4
+        ],
+        "description": "No description added yet.",
+        "average_rating": 4.0
     },
     {
-        "username": "Keshav434",
-        "password": "Orange777",
-        "email": "keshav.jindal@mail.utoronto.ca"
+        "username": "Keser",
+        "password": "123",
+        "email": "keshav.jindal32@mail.utoronto.ca",
+        "reviews": [],
+        "ratings": [],
+        "description": "No description added yet."
     }
 ]
