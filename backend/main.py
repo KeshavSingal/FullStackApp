@@ -1,5 +1,6 @@
 import os
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 from bson import ObjectId
 from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,9 +21,19 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # MongoDB setup
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 logger.info(f"Connecting to MongoDB with URI: {MONGO_URI}")
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
+
+# Test the connection to MongoDB
+try:
+    client.admin.command('ping')
+    logger.info("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    logger.error(f"Failed to connect to MongoDB: {e}")
+    raise HTTPException(status_code=500, detail="Failed to connect to MongoDB. Please check your connection.")
+
+# Define the database and collections
 db = client["marketplace_db"]
 products_collection = db["products"]
 users_collection = db["users"]
