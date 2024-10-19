@@ -28,6 +28,7 @@ ROOT_DIR = Path(__file__).parent.parent
 # Define paths to static and template folders
 STATIC_DIR = ROOT_DIR / "frontend" / "static"
 TEMPLATE_DIR = ROOT_DIR / "frontend" / "templates"
+UPLOAD_DIR = STATIC_DIR / "uploads"
 
 # Check if static and templates directories exist
 if not STATIC_DIR.exists():
