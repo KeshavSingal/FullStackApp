@@ -11,11 +11,17 @@ import random
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
 # MongoDB setup
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+logger.info(f"Connecting to MongoDB with URI: {MONGO_URI}")
 client = MongoClient(MONGO_URI)
 db = client["marketplace_db"]
 products_collection = db["products"]
@@ -43,15 +49,13 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Set up templates
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
-UPLOAD_DIR = STATIC_DIR / "uploads"
-
 # OTP Management
 OTP_STORE = {}
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_EMAIL = "keshavjindal2k19@gmail.com"  # Replace with your email
-SMTP_PASSWORD = "qdzn xhtg vydw ncgy"
+SMTP_EMAIL = os.getenv("SMTP_EMAIL", "your-email@example.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "your-email-password")
 
 def send_otp(email: str, otp: str):
     try:
@@ -68,7 +72,7 @@ def send_otp(email: str, otp: str):
         server.sendmail(SMTP_EMAIL, email, msg.as_string())
         server.quit()
     except Exception as e:
-        print(f"Failed to send OTP: {e}")
+        logger.error(f"Failed to send OTP: {e}")
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
 
 @app.post("/generate-otp")
@@ -82,6 +86,7 @@ async def generate_otp(email: str = Form(...)):
     try:
         send_otp(email, otp)
     except Exception as e:
+        logger.error(f"Failed to send OTP: {e}")
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
 
     return {"message": "OTP sent to your email."}
@@ -89,6 +94,8 @@ async def generate_otp(email: str = Form(...)):
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, search: str = Query("", min_length=0)):
     username = request.cookies.get("username")
+    logger.info(f"Received request for home page. Username: {username}")
+    
     cart = carts_collection.find_one({"username": username})
     cart_count = len(cart["items"]) if cart else 0
     
