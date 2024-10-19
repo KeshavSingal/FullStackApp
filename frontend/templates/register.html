@@ -1,14 +1,106 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="my-4">Register</h2>
-<form method="post" action="/register" class="form-group">
-    <input type="text" name="username" placeholder="Username" class="form-control mb-2" value="{{ username }}" required>
-    <input type="password" name="password" placeholder="Password" class="form-control mb-2" required>
-    <input type="text" name="email" placeholder="Email" class="form-control mb-2" value="{{ email }}" required>
-    <button type="submit" class="btn btn-primary">Register</button>
-    {% if error_message %}
-    <div class="alert alert-danger mt-3">{{ error_message }}</div>
-    {% endif %}
-</form>
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg p-4">
+                <h2 class="text-center mb-4">Register</h2>
+                <form method="post" action="/register" class="form-group" id="registerForm">
+                    <div class="form-group mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" id="username" name="username" placeholder="Username" class="form-control" required>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" id="password" name="password" placeholder="Password" class="form-control" required>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="confirm_password" class="form-label">Confirm Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" class="form-control" required>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="emailField" class="form-label">University Email</label>
+                        <input type="email" name="email" id="emailField" placeholder="University Email (e.g., @mail.utoronto.ca)" class="form-control" required>
+                    </div>
+
+                    <div class="form-group mb-3 d-grid">
+                        <button type="button" class="btn btn-outline-secondary" id="sendOtpButton" disabled>Send OTP</button>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="otp" class="form-label">Enter OTP</label>
+                        <input type="text" name="otp" id="otp" placeholder="Enter OTP" class="form-control" required>
+                    </div>
+
+                    <div class="form-group mb-4 d-grid">
+                        <button type="submit" class="btn btn-primary" id="registerButton">Register</button>
+                    </div>
+
+                    {% if error_message %}
+                        <div class="alert alert-danger text-center">{{ error_message }}</div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Function to check if passwords match
+    function checkPasswords() {
+        const password = document.getElementById("password").value;
+        const confirmPassword = document.getElementById("confirm_password").value;
+        const sendOtpButton = document.getElementById("sendOtpButton");
+
+        if (password && confirmPassword && password === confirmPassword) {
+            sendOtpButton.disabled = false;
+        } else {
+            sendOtpButton.disabled = true;
+        }
+    }
+
+    // Attach event listeners to the password fields
+    document.getElementById("password").addEventListener("input", checkPasswords);
+    document.getElementById("confirm_password").addEventListener("input", checkPasswords);
+
+    // Send OTP logic
+    document.getElementById("sendOtpButton").addEventListener("click", function() {
+        const email = document.getElementById("emailField").value;
+
+        if (email.endsWith("@mail.utoronto.ca")) {
+            fetch("/generate-otp", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({ "email": email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                } else if (data.detail) {
+                    alert(data.detail);
+                }
+            });
+        } else {
+            alert("Only University of Toronto email addresses are allowed.");
+        }
+    });
+
+    // Register button password matching validation
+    document.getElementById("registerButton").addEventListener("click", function(event) {
+        const password = document.getElementById("password").value;
+        const confirmPassword = document.getElementById("confirm_password").value;
+
+        if (password !== confirmPassword) {
+            event.preventDefault();
+            alert("Passwords do not match. Please try again.");
+        }
+    });
+</script>
 {% endblock %}

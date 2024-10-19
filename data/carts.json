@@ -30,5 +30,14 @@
             "image": "/static/uploads/Screenshot 2024-10-18 at 1.40.40\u202fPM.png",
             "added_by": "Hey"
         }
+    ],
+    "Keshav434": [
+        {
+            "id": 2,
+            "name": "Cool this works",
+            "price": 333.0,
+            "image": "/static/uploads/Screenshot 2024-10-18 at 1.40.40\u202fPM.png",
+            "added_by": "Hey"
+        }
     ]
 }
