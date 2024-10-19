@@ -20,10 +20,17 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # MongoDB setup with SSL configuration
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority")
+MONGO_URI = "mongodb+srv://keshavjindal2k19:<FvHBKajvAwJSrkLu>@cluster0.kcmmf.mongodb.net/?retryWrites=true&w=majority"
 logger.info(f"Connecting to MongoDB with URI: {MONGO_URI}")
 
-client = MongoClient(MONGO_URI, ssl=True, ssl_cert_reqs=ssl_support.CERT_NONE)
+try:
+    client = MongoClient(MONGO_URI, ssl=True, ssl_cert_reqs=ssl_support.CERT_NONE)
+    client.admin.command('ping')
+    logger.info("Successfully connected to MongoDB")
+except Exception as e:
+    logger.error(f"Failed to connect to MongoDB: {e}")
+    raise HTTPException(status_code=500, detail="Failed to connect to MongoDB. Please check your connection.")
+
 db = client["marketplace_db"]
 products_collection = db["products"]
 users_collection = db["users"]
