@@ -1,23 +1,16 @@
 [
     {
         "id": 1,
-        "name": "Product 1",
-        "price": 111.0,
-        "image": "/static/uploads/Screenshot 2024-10-18 at 6.48.49\u202fPM.png",
+        "name": "Keshav",
+        "price": 123.0,
+        "image": "/static/uploads/Screenshot 2024-10-18 at 1.44.26\u202fPM.png",
         "added_by": "Keshav"
     },
     {
         "id": 2,
-        "name": "Product 2",
-        "price": 444.0,
-        "image": "/static/uploads/Screenshot 2024-10-18 at 10.25.32\u202fPM.png",
-        "added_by": "Keshav"
-    },
-    {
-        "id": 3,
         "name": "Cool this works",
-        "price": 123.0,
-        "image": "/static/uploads/Screenshot 2024-10-18 at 3.38.11\u202fPM.png",
+        "price": 333.0,
+        "image": "/static/uploads/Screenshot 2024-10-18 at 1.40.40\u202fPM.png",
         "added_by": "Hey"
     }
 ]

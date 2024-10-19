@@ -105,7 +105,8 @@ async def home(request: Request, search: str = Query("", min_length=0)):
         "products": filtered_products,
         "username": username,
         "search": search,
-        "cart_count": cart_count
+        "cart_count": cart_count,
+        "show_add_product_button": username is not None  # Show 'Add Product' button if user is logged in
     })
 
 @app.get("/register", response_class=HTMLResponse)
@@ -278,7 +279,6 @@ async def rate_user(request: Request, username: str = Form(...), rating: int = F
 
     return RedirectResponse(f"/profile?username={username}", status_code=303)
 
-# Shopping cart mechanism
 @app.get("/cart", response_class=HTMLResponse)
 async def view_cart(request: Request):
     username = request.cookies.get("username")

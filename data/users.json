@@ -1,15 +1,12 @@
 [
     {
         "username": "Keshav",
-        "password": "123",
-        "email": "keshav.jindal@mail.utoronto.ca",
-        "ratings": [
-            5
-        ]
+        "password": "1234",
+        "email": "keshav.jindal@mail.utoronto.ca"
     },
     {
         "username": "Hey",
-        "password": "1234",
-        "email": "keshav.jindaerewl@mail.utoronto.ca"
+        "password": "12345",
+        "email": "keshav.jind23al@mail.utoronto.ca"
     }
 ]

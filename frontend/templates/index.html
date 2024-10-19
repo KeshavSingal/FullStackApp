@@ -3,7 +3,7 @@
 {% block content %}
 <h2 class="my-4 text-center">Featured Products</h2>
 
-<!-- Carousel Section (remains unchanged) -->
+<!-- Carousel Section -->
 <div id="featuredCarousel" class="carousel slide mb-5" data-bs-ride="carousel">
     <div class="carousel-inner">
         {% for product in products[:4] %}
@@ -18,6 +18,7 @@
         </div>
         {% endfor %}
     </div>
+
     <!-- Carousel Controls -->
     <button class="carousel-control-prev" type="button" data-bs-target="#featuredCarousel" data-bs-slide="prev">
         <span class="carousel-control-prev-icon bg-dark rounded-circle" aria-hidden="true"></span>
@@ -35,15 +36,17 @@
     <button type="submit" class="btn btn-primary">Search</button>
 </form>
 
-<!-- Remove the following "Login" and "Register" buttons -->
+<!-- Personalized Greeting Section -->
 {% if username %}
-    <p class="greeting-text">Hi, {{ username }}! Welcome back.</p>
-    <a href="/logout" class="btn btn-secondary mb-4">Logout</a>
-    <a href="/cart" class="btn btn-info mb-4 float-end">View Cart ({{ cart_count }})</a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <p class="greeting-text">Hi, {{ username }}! Welcome back.</p>
+        <div>
+            <a href="/cart" class="btn btn-info me-2">View Cart ({{ cart_count }})</a>
+            <a href="/add-product" class="btn btn-success">Add Product</a>
+        </div>
+    </div>
 {% else %}
-    <!-- REMOVE THESE BUTTONS -->
-    {# <a href="/login" class="btn btn-primary mb-4">Login</a>
-    <a href="/register" class="btn btn-success mb-4">Register</a> #}
+    <a href="/login" class="btn btn-primary mb-4">Login</a>
 {% endif %}
 
 <!-- Product Cards Section -->
@@ -56,7 +59,7 @@
             <div class="card-body">
                 <h5 class="card-title">{{ product.name }}</h5>
                 <p class="card-text">${{ product.price }}</p>
-                <p class="card-text">Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></p>
+                <p class="card-text"><small>Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></small></p>
                 <form method="post" action="/add-to-cart">
                     <input type="hidden" name="product_id" value="{{ product.id }}">
                     <button type="submit" class="btn btn-primary">Add to Cart</button>
