@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-
 {% block content %}
+
 <h2 class="my-4 text-center">Featured Products</h2>
 
 <!-- Carousel Section -->
@@ -30,16 +30,14 @@
     </button>
 </div>
 
-<!-- Search Section -->
-<form method="get" action="/" class="my-4">
-    <input type="text" name="search" value="{{ search }}" placeholder="Search for products..." class="form-control mb-3">
-    <button type="submit" class="btn btn-primary">Search</button>
+<form action="{{ url_for('home') }}" method="get" class="mb-4">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search" class="form-control">
+    <button type="submit" class="btn btn-primary mt-2">Search</button>
 </form>
 
-<!-- Personalized Greeting Section -->
 {% if username %}
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <p class="greeting-text">Hi, {{ username }}! Welcome back.</p>
+        <p>Hi, {{ username }}! Welcome back.</p>
         <div>
             <a href="/cart" class="btn btn-info me-2">View Cart ({{ cart_count }})</a>
             <a href="/add-product" class="btn btn-success">Add Product</a>
@@ -49,38 +47,27 @@
     <a href="/login" class="btn btn-primary mb-4">Login</a>
 {% endif %}
 
-<!-- Product Cards Section -->
 <div class="row">
-    {% for product in products %}
+{% for product in products %}
     <div class="col-md-4">
         <div class="card mb-4 product-card animate__animated animate__fadeInUp">
-            <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}"
-                 style="max-height: 300px; object-fit: cover;">
+            <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}" style="max-height: 300px; object-fit: cover;">
             <div class="card-body">
                 <h5 class="card-title">{{ product.name }}</h5>
                 <p class="card-text">${{ product.price }}</p>
-                <p class="card-text"><small>Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></small></p>
-                <form method="post" action="/add-to-cart">
-                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                <p class="small">Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></p>
+                <form action="/add-to-cart" method="post">
+                    <input type="hidden" name="product_id" value="{{ product._id }}">
                     <button type="submit" class="btn btn-primary">Add to Cart</button>
                 </form>
             </div>
         </div>
     </div>
-    {% endfor %}
+{% endfor %}
 </div>
 
 {% if not products %}
-<p class="text-center mt-5">No products found for "{{ search }}".</p>
+    <p>No products found for "{{ search }}".</p>
 {% endif %}
-
-<!-- Chatbot Integration -->
-<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
-<df-messenger
-  intent="WELCOME"
-  chat-title="STEM Success Global Tutors"
-  agent-id="c4cb4451-2b4d-4812-820d-25bbd60b283a"
-  language-code="en"
-></df-messenger>
 
 {% endblock %}
