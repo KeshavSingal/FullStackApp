@@ -42,6 +42,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/sellers"><i class="fas fa-users me-1"></i>Sellers</a>
                     </li>
+                    {% if username %}
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-light text-primary" href="/chat"><i class="fas fa-comments me-1"></i>Chat</a>
+                    </li>
+                    {% endif %}
                     {% if not username %}
                     <li class="nav-item">
                         <a class="nav-link" href="/register"><i class="fas fa-user-plus me-1"></i>Register</a>

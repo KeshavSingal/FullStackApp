@@ -3,17 +3,23 @@ import logging
 import random
 import shutil
 import smtplib
+import json
 from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
+from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File, WebSocket, \
+    WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pymongo.mongo_client import MongoClient
+from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 from bson import ObjectId
+from datetime import datetime
+from typing import Dict
+from fastapi.responses import PlainTextResponse
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -24,11 +30,8 @@ app = FastAPI()
 
 # MongoDB setup
 uri = os.getenv("MONGO_URI")
-
-# Create a new client and connect to the server
 client = MongoClient(uri, server_api=ServerApi('1'))
 
-# Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
     logger.info("Pinged your deployment. You successfully connected to MongoDB!")
@@ -41,38 +44,102 @@ db = client["marketplace_db"]
 products_collection = db["products"]
 users_collection = db["users"]
 carts_collection = db["carts"]
+chat_messages_collection = db["chat_messages"]
 
-# Get the root directory dynamically
+# File paths setup
 ROOT_DIR = Path(__file__).parent.parent
-
-# Define paths to static and template folders
 STATIC_DIR = ROOT_DIR / "frontend" / "static"
 TEMPLATE_DIR = ROOT_DIR / "frontend" / "templates"
-
-# Check if static and templates directories exist
-if not STATIC_DIR.exists():
-    logger.error(f"Directory '{STATIC_DIR}' does not exist.")
-    raise RuntimeError(f"Directory '{STATIC_DIR}' does not exist. Please create this directory to proceed.")
-
-if not TEMPLATE_DIR.exists():
-    logger.error(f"Template directory '{TEMPLATE_DIR}' does not exist.")
-    raise RuntimeError(f"Template directory '{TEMPLATE_DIR}' does not exist. Please create this directory to proceed.")
-
-# Mount static files for CSS and images
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-# Set up templates
-templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
-
 UPLOAD_DIR = STATIC_DIR / "uploads"
 
-# OTP Management
-OTP_STORE = {}
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
+# OTP and SMTP setup
+OTP_STORE = {}
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+
+    async def connect(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        self.active_connections[user_id] = websocket
+
+    def disconnect(self, user_id: str):
+        if user_id in self.active_connections:
+            del self.active_connections[user_id]
+
+    async def send_personal_message(self, message: str, user_id: str):
+        if user_id in self.active_connections:
+            await self.active_connections[user_id].send_text(message)
+
+manager = ConnectionManager()
+
+# WebSocket endpoint
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
+
+            # Store the message in MongoDB
+            chat_message = {
+                "sender": message_data["sender"],
+                "receiver": message_data["receiver"],
+                "message": message_data["message"],
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            chat_messages_collection.insert_one(chat_message)
+
+            # Send the message to the recipient
+            await manager.send_personal_message(json.dumps(message_data), message_data["receiver"])
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+    except Exception as e:
+        logger.error(f"Error in WebSocket connection: {str(e)}")
+        manager.disconnect(user_id)
+
+# Chat page
+@app.get("/chat", response_class=HTMLResponse)
+async def chat_page(request: Request):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    users = list(users_collection.find({}, {"username": 1, "_id": 0}))
+    return templates.TemplateResponse("chat.html", {
+        "request": request,
+        "username": username,
+        "users": users
+    })
+
+# Get chat messages
+@app.get("/get-messages")
+async def get_messages(user1: str, user2: str):
+    messages = chat_messages_collection.find({
+        "$or": [
+            {"sender": user1, "receiver": user2},
+            {"sender": user2, "receiver": user1}
+        ]
+    }).sort("timestamp", 1)
+
+    # Convert ObjectId to string for JSON serialization
+    messages_list = []
+    for msg in messages:
+        msg['_id'] = str(msg['_id'])
+        messages_list.append(msg)
+
+    return messages_list
+
+# Existing functions
 
 def send_otp(email: str, otp: str):
     try:
@@ -94,9 +161,9 @@ def send_otp(email: str, otp: str):
 @app.post("/generate-otp")
 async def generate_otp(email: str = Form(...)):
     if not email.endswith("@gmail.com"):
-        raise HTTPException(status_code=400, detail="Only University of Toronto email addresses are allowed.")
-    otp = str(random.randint(100000, 999999))  # Generate a 6-digit OTP
-    OTP_STORE[email] = otp  # Store OTP temporarily
+        raise HTTPException(status_code=400, detail="Only Gmail addresses are allowed.")
+    otp = str(random.randint(100000, 999999))
+    OTP_STORE[email] = otp
     try:
         send_otp(email, otp)
     except Exception as e:
@@ -122,14 +189,13 @@ async def home(request: Request, search: str = Query("", min_length=0)):
 async def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
-
 @app.post("/register")
 async def register_user(request: Request, username: str = Form(...), password: str = Form(...), email: str = Form(...),
                         otp: str = Form(...)):
     error_message = None
 
     if not email.endswith("@gmail.com"):
-        error_message = "Only University of Toronto email addresses are allowed."
+        error_message = "Only Gmail addresses are allowed."
     elif email not in OTP_STORE or OTP_STORE[email] != otp:
         error_message = "Invalid OTP. Please try again."
     elif users_collection.find_one({"username": username}):
@@ -498,11 +564,11 @@ async def edit_description(request: Request, description: str = Form(...)):
 # Error handling
 @app.exception_handler(404)
 async def not_found_exception_handler(request: Request, exc: HTTPException):
-    return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+    return PlainTextResponse(str(exc.detail), status_code=404)
 
 @app.exception_handler(500)
 async def server_error_exception_handler(request: Request, exc: HTTPException):
-    return templates.TemplateResponse("500.html", {"request": request}, status_code=500)
+    return PlainTextResponse("Internal Server Error", status_code=500)
 
 
 
