@@ -1,59 +1,55 @@
 {% extends "base.html" %}
-
 {% block content %}
-<h2 class="my-4">{{ username }}'s Profile</h2>
 <div class="card p-4 profile-container">
-    <h4 class="card-title">Welcome, {{ username }}</h4>
-    <p class="card-text my-3">Here are your details:</p>
+    <h2 class="card-title mb-4">{{ username }}'s Profile</h2>
 
-    <!-- User Details -->
-    <ul class="list-group mb-4">
-        <li class="list-group-item"><strong>Username:</strong> {{ username }}</li>
-        <li class="list-group-item"><strong>Email:</strong> {{ user_email }}</li>
-        <li class="list-group-item"><strong>Average Rating:</strong> {{ average_rating }}</li>
-    </ul>
-
-    <!-- Description Section -->
-    <h5>Description</h5>
-    <p>{{ user_description }}</p>
-    {% if username == request.cookies.get('username') %}
-        <!-- Form to edit description -->
-        <form method="post" action="/edit-description" class="form-group mt-3">
-            <textarea name="description" placeholder="Add or edit your description here..." class="form-control mb-2">{{ user_description }}</textarea>
-            <button type="submit" class="btn btn-secondary">Update Description</button>
-        </form>
-    {% endif %}
-
-    <hr class="my-4">
-
-    <!-- Reviews Section -->
-    <h5>Reviews</h5>
-    {% if user_reviews %}
-        <div class="reviews-section">
-            <ul class="list-group">
-                {% for review in user_reviews %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span style="color: #007bff; font-weight: bold;">{{ review.reviewer }}</span>
-                            - {{ review.review }}
-                        </div>
-                        <span class="badge bg-primary rounded-pill">{{ review.rating }}/5</span>
-                    </li>
-                {% endfor %}
-            </ul>
+    <div class="row">
+        <div class="col-md-4">
+            <img src="https://via.placeholder.com/150" alt="{{ username }}" class="img-fluid rounded-circle mb-3">
         </div>
-    {% else %}
-        <p>No reviews yet.</p>
+        <div class="col-md-8">
+            <h4>Welcome, {{ username }}</h4>
+            <p><strong>Email:</strong> {{ user_email }}</p>
+            <p><strong>Average Rating:</strong> {{ average_rating }} <i class="fas fa-star text-warning"></i></p>
+        </div>
+    </div>
+
+    <hr>
+
+    <h5 class="mt-4">Description</h5>
+    <p>{{ user_description }}</p>
+
+    {% if username == request.cookies.get('username') %}
+    <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#updateDescriptionModal">
+        <i class="fas fa-edit"></i> Update Description
+    </button>
     {% endif %}
 
-    <!-- Add Review Section -->
+    <hr>
+
+    <h5 class="mt-4">Reviews</h5>
+    {% if user_reviews %}
+    <div class="reviews-section">
+        {% for review in user_reviews %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">{{ review.reviewer }}</h6>
+                <p class="card-text">{{ review.review }}</p>
+                <span class="badge bg-primary rounded-pill">{{ review.rating }}/5 <i class="fas fa-star"></i></span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">No reviews yet.</p>
+    {% endif %}
+
     {% if username != request.cookies.get('username') %}
-        <h5 class="mt-4">Leave a Review:</h5>
-        <form method="post" action="/rate-user" class="form-group review-form">
-            <input type="hidden" name="username" value="{{ username }}">
-            <textarea name="review" placeholder="Write your review here..." class="form-control mb-2" required></textarea>
-            <label for="rating">Rating:</label>
-            <select name="rating" id="rating" class="form-control mb-2" required>
+    <h5 class="mt-4">Leave a Review:</h5>
+    <form>
+        <div class="mb-3">
+            <label for="rating" class="form-label">Rating:</label>
+            <select class="form-select" id="rating" name="rating" required>
                 <option value="">Select Rating</option>
                 <option value="1">1 Star - Poor</option>
                 <option value="2">2 Stars - Fair</option>
@@ -61,8 +57,35 @@
                 <option value="4">4 Stars - Very Good</option>
                 <option value="5">5 Stars - Excellent</option>
             </select>
-            <button type="submit" class="btn btn-success">Submit Review</button>
-        </form>
+        </div>
+        <div class="mb-3">
+            <label for="review" class="form-label">Review:</label>
+            <textarea class="form-control" id="review" name="review" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Review</button>
+    </form>
     {% endif %}
 </div>
+
+{% if username == request.cookies.get('username') %}
+<div class="modal fade" id="updateDescriptionModal" tabindex="-1" aria-labelledby="updateDescriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="updateDescriptionModalLabel">Update Description</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description:</label>
+                        <textarea class="form-control" id="description" name="description" rows="5" required>{{ user_description }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update Description</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

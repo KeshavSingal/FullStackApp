@@ -1,7 +1,10 @@
 {% extends "base.html" %}
-
 {% block content %}
-<h2 class="my-4">Logout</h2>
-<p class="mb-3">Hey {{ username }}! You have successfully logged out.</p>
-<a href="/" class="btn btn-primary">Back to Home</a>
+<div class="text-center mt-5">
+    <h2 class="mb-4">Logout</h2>
+    <div class="alert alert-success" role="alert">
+        <i class="fas fa-check-circle"></i> Hey {{ username }}! You have successfully logged out.
+    </div>
+    <a href="/" class="btn btn-primary mt-3"><i class="fas fa-home"></i> Back to Home</a>
+</div>
 {% endblock %}

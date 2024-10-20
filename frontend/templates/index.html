@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-
 <h2 class="my-4 text-center">Featured Products</h2>
 
 <!-- Carousel Section -->
-<div id="featuredCarousel" class="carousel slide mb-5" data-bs-ride="carousel">
+<div id="featuredCarousel" class="carousel slide mb-5 shadow" data-bs-ride="carousel">
     <div class="carousel-inner">
         {% for product in products[:4] %}
         <div class="carousel-item {% if loop.index == 1 %}active{% endif %}">
@@ -12,13 +11,12 @@
                  style="max-height: 350px; width: 70%; object-fit: cover; border-radius: 10px;"
                  alt="{{ product.name }}">
             <div class="carousel-caption bg-dark text-white p-3 rounded" style="opacity: 0.8;">
-                <h5>{{ product.name }}</h5>
-                <p>Price: ${{ product.price }}</p>
+                <h5 class="mb-0">{{ product.name }}</h5>
+                <p class="mb-0">Price: ${{ product.price }}</p>
             </div>
         </div>
         {% endfor %}
     </div>
-
     <!-- Carousel Controls -->
     <button class="carousel-control-prev" type="button" data-bs-target="#featuredCarousel" data-bs-slide="prev">
         <span class="carousel-control-prev-icon bg-dark rounded-circle" aria-hidden="true"></span>
@@ -30,44 +28,67 @@
     </button>
 </div>
 
-<form action="{{ url_for('home') }}" method="get" class="mb-4">
-    <input type="text" name="search" value="{{ search }}" placeholder="Search" class="form-control">
-    <button type="submit" class="btn btn-primary mt-2">Search</button>
-</form>
-
-{% if username %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <p>Hi, {{ username }}! Welcome back.</p>
-        <div>
-            <a href="/cart" class="btn btn-info me-2">View Cart ({{ cart_count }})</a>
-            <a href="/add-product" class="btn btn-success">Add Product</a>
+<div class="container">
+    <form action="{{ url_for('home') }}" method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" value="{{ search }}" placeholder="Search" class="form-control">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Search
+            </button>
         </div>
-    </div>
-{% else %}
-    <a href="/login" class="btn btn-primary mb-4">Login</a>
-{% endif %}
+    </form>
 
-<div class="row">
-{% for product in products %}
-    <div class="col-md-4">
-        <div class="card mb-4 product-card animate__animated animate__fadeInUp">
-            <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}" style="max-height: 300px; object-fit: cover;">
-            <div class="card-body">
-                <h5 class="card-title">{{ product.name }}</h5>
-                <p class="card-text">${{ product.price }}</p>
-                <p class="small">Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></p>
-                <form action="/add-to-cart" method="post">
-                    <input type="hidden" name="product_id" value="{{ product._id }}">
-                    <button type="submit" class="btn btn-primary">Add to Cart</button>
-                </form>
+    {% if username %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">Hi, {{ username }}! Welcome back.</h4>
+            <div>
+                <a href="/cart" class="btn btn-info me-2">
+                    <i class="fas fa-shopping-cart"></i> View Cart ({{ cart_count }})
+                </a>
+                <a href="/add-product" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Add Product
+                </a>
             </div>
         </div>
+    {% else %}
+        <a href="/login" class="btn btn-primary mb-4">
+            <i class="fas fa-sign-in-alt"></i> Login
+        </a>
+    {% endif %}
+
+    <div class="row">
+    {% for product in products %}
+        <div class="col-md-4">
+            <div class="card mb-4 product-card animate__animated animate__fadeInUp shadow-sm">
+                <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}" style="max-height: 300px; object-fit: cover;">
+                <div class="card-body">
+                    <h5 class="card-title">{{ product.name }}</h5>
+                    <p class="card-text font-weight-bold">${{ product.price }}</p>
+                    <p class="card-text small">Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></p>
+                    <form action="/add-to-cart" method="post">
+                        <input type="hidden" name="product_id" value="{{ product._id }}">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
     </div>
-{% endfor %}
+
+	<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<df-messenger
+  intent="WELCOME"
+  chat-title="STEM Success Global Tutors"
+  agent-id="c4cb4451-2b4d-4812-820d-25bbd60b283a"
+  language-code="en"
+></df-messenger>
+
+    {% if not products %}
+        <div class="alert alert-info" role="alert">
+            <i class="fas fa-info-circle"></i> No products found for "{{ search }}".
+        </div>
+    {% endif %}
 </div>
-
-{% if not products %}
-    <p>No products found for "{{ search }}".</p>
-{% endif %}
-
 {% endblock %}
