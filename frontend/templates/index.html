@@ -7,13 +7,15 @@
     <div class="carousel-inner">
         {% for product in products[:4] %}
         <div class="carousel-item {% if loop.index == 1 %}active{% endif %}">
-            <img src="{{ product.image }}" class="d-block mx-auto"
-                 style="max-height: 350px; width: 70%; object-fit: cover; border-radius: 10px;"
-                 alt="{{ product.name }}">
-            <div class="carousel-caption bg-dark text-white p-3 rounded" style="opacity: 0.8;">
-                <h5 class="mb-0">{{ product.name }}</h5>
-                <p class="mb-0">Price: ${{ product.price }}</p>
-            </div>
+            <a href="/product/{{ product._id }}">
+                <img src="{{ product.image }}" class="d-block mx-auto"
+                     style="max-height: 350px; width: 70%; object-fit: cover; border-radius: 10px;"
+                     alt="{{ product.name }}">
+                <div class="carousel-caption bg-dark text-white p-3 rounded" style="opacity: 0.8;">
+                    <h5 class="mb-0">{{ product.name }}</h5>
+                    <p class="mb-0">Price: ${{ product.price }}</p>
+                </div>
+            </a>
         </div>
         {% endfor %}
     </div>
@@ -60,11 +62,15 @@
     {% for product in products %}
         <div class="col-md-4">
             <div class="card mb-4 product-card animate__animated animate__fadeInUp shadow-sm">
-                <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}" style="max-height: 300px; object-fit: cover;">
-                <div class="card-body">
-                    <h5 class="card-title">{{ product.name }}</h5>
-                    <p class="card-text font-weight-bold">${{ product.price }}</p>
-                    <p class="card-text small">Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></p>
+                <a href="/product/{{ product._id }}" class="text-decoration-none">
+                    <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}" style="max-height: 300px; object-fit: cover;">
+                    <div class="card-body">
+                        <h5 class="card-title text-dark">{{ product.name }}</h5>
+                        <p class="card-text font-weight-bold text-primary">${{ product.price }}</p>
+                        <p class="card-text small text-muted">Added by: <a href="/profile?username={{ product.added_by }}">{{ product.added_by }}</a></p>
+                    </div>
+                </a>
+                <div class="card-footer">
                     <form action="/add-to-cart" method="post">
                         <input type="hidden" name="product_id" value="{{ product._id }}">
                         <button type="submit" class="btn btn-primary w-100">
@@ -77,13 +83,13 @@
     {% endfor %}
     </div>
 
-	<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
-<df-messenger
-  intent="WELCOME"
-  chat-title="STEM Success Global Tutors"
-  agent-id="c4cb4451-2b4d-4812-820d-25bbd60b283a"
-  language-code="en"
-></df-messenger>
+    <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+    <df-messenger
+      intent="WELCOME"
+      chat-title="STEM Success Global Tutors"
+      agent-id="c4cb4451-2b4d-4812-820d-25bbd60b283a"
+      language-code="en"
+    ></df-messenger>
 
     {% if not products %}
         <div class="alert alert-info" role="alert">

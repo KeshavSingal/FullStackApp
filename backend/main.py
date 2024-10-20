@@ -1,3 +1,12 @@
+import os
+import logging
+import random
+import shutil
+import smtplib
+from pathlib import Path
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form, HTTPException, Response, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -5,14 +14,10 @@ from fastapi.templating import Jinja2Templates
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from bson import ObjectId
-import shutil
-from pathlib import Path
-import random
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from dotenv import load_dotenv
-import os
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 app = FastAPI()
@@ -26,9 +31,9 @@ client = MongoClient(uri, server_api=ServerApi('1'))
 # Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
+    logger.info("Pinged your deployment. You successfully connected to MongoDB!")
 except Exception as e:
-    print(f"Failed to connect to MongoDB. Error details: {str(e)}")
+    logger.error(f"Failed to connect to MongoDB. Error details: {str(e)}")
     raise RuntimeError("Failed to connect to MongoDB") from e
 
 # MongoDB Database and Collection references
@@ -46,9 +51,11 @@ TEMPLATE_DIR = ROOT_DIR / "frontend" / "templates"
 
 # Check if static and templates directories exist
 if not STATIC_DIR.exists():
+    logger.error(f"Directory '{STATIC_DIR}' does not exist.")
     raise RuntimeError(f"Directory '{STATIC_DIR}' does not exist. Please create this directory to proceed.")
 
 if not TEMPLATE_DIR.exists():
+    logger.error(f"Template directory '{TEMPLATE_DIR}' does not exist.")
     raise RuntimeError(f"Template directory '{TEMPLATE_DIR}' does not exist. Please create this directory to proceed.")
 
 # Mount static files for CSS and images
@@ -75,29 +82,25 @@ def send_otp(email: str, otp: str):
         msg['Subject'] = "Your OTP for Registration"
         body = f"Your OTP for registration is: {otp}"
         msg.attach(MIMEText(body, 'plain'))
-
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SMTP_EMAIL, SMTP_PASSWORD)
         server.sendmail(SMTP_EMAIL, email, msg.as_string())
         server.quit()
     except Exception as e:
-        print(f"Failed to send OTP: {e}")
+        logger.error(f"Failed to send OTP: {e}")
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
 
 @app.post("/generate-otp")
 async def generate_otp(email: str = Form(...)):
     if not email.endswith("@mail.utoronto.ca"):
         raise HTTPException(status_code=400, detail="Only University of Toronto email addresses are allowed.")
-
     otp = str(random.randint(100000, 999999))  # Generate a 6-digit OTP
     OTP_STORE[email] = otp  # Store OTP temporarily
-
     try:
         send_otp(email, otp)
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
-
     return {"message": "OTP sent to your email."}
 
 @app.get("/", response_class=HTMLResponse)
@@ -105,10 +108,8 @@ async def home(request: Request, search: str = Query("", min_length=0)):
     username = request.cookies.get("username")
     cart = carts_collection.find_one({"username": username})
     cart_count = len(cart["items"]) if cart else 0
-
     query = {"name": {"$regex": search, "$options": "i"}} if search else {}
     filtered_products = list(products_collection.find(query))
-
     return templates.TemplateResponse("index.html", {
         "request": request,
         "products": filtered_products,
@@ -312,6 +313,54 @@ async def profile(request: Request, username: str = None):
     })
 
 
+@app.get("/product/{product_id}", response_class=HTMLResponse)
+async def product_profile(request: Request, product_id: str):
+    username = request.cookies.get("username")
+    product = products_collection.find_one({"_id": ObjectId(product_id)})
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Calculate average rating
+    ratings = product.get("ratings", [])
+    average_rating = round(sum(ratings) / len(ratings), 2) if ratings else "No ratings yet"
+
+    return templates.TemplateResponse("product_profile.html", {
+        "request": request,
+        "product": product,
+        "username": username,
+        "average_rating": average_rating,
+        "product_reviews": product.get("reviews", [])
+    })
+
+
+@app.post("/rate-product")
+async def rate_product(request: Request, product_id: str = Form(...), rating: int = Form(...), review: str = Form(...)):
+    username = request.cookies.get("username")
+    if not username:
+        raise HTTPException(status_code=403, detail="You must be logged in to leave a review.")
+
+    product = products_collection.find_one({"_id": ObjectId(product_id)})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if product["added_by"] == username:
+        raise HTTPException(status_code=400, detail="You cannot rate your own product.")
+
+    if not (1 <= rating <= 5):
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+
+    new_review = {"reviewer": username, "review": review, "rating": rating}
+    products_collection.update_one(
+        {"_id": ObjectId(product_id)},
+        {
+            "$push": {"reviews": new_review, "ratings": rating},
+            "$set": {"average_rating": {"$avg": "$ratings"}}
+        }
+    )
+
+    return RedirectResponse(f"/product/{product_id}", status_code=303)
+
 @app.get("/edit-profile", response_class=HTMLResponse)
 async def edit_profile(request: Request):
     username = request.cookies.get("username")
@@ -446,20 +495,18 @@ async def edit_description(request: Request, description: str = Form(...)):
 
     return RedirectResponse(f"/profile?username={current_username}", status_code=303)
 
-
 # Error handling
 @app.exception_handler(404)
 async def not_found_exception_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
-
 
 @app.exception_handler(500)
 async def server_error_exception_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse("500.html", {"request": request}, status_code=500)
 
 
+
 # Run the application
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
