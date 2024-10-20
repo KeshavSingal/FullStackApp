@@ -93,7 +93,7 @@ def send_otp(email: str, otp: str):
 
 @app.post("/generate-otp")
 async def generate_otp(email: str = Form(...)):
-    if not email.endswith("@mail.utoronto.ca"):
+    if not email.endswith("@gmail.com"):
         raise HTTPException(status_code=400, detail="Only University of Toronto email addresses are allowed.")
     otp = str(random.randint(100000, 999999))  # Generate a 6-digit OTP
     OTP_STORE[email] = otp  # Store OTP temporarily
@@ -128,7 +128,7 @@ async def register_user(request: Request, username: str = Form(...), password: s
                         otp: str = Form(...)):
     error_message = None
 
-    if not email.endswith("@mail.utoronto.ca"):
+    if not email.endswith("@gmail.com"):
         error_message = "Only University of Toronto email addresses are allowed."
     elif email not in OTP_STORE or OTP_STORE[email] != otp:
         error_message = "Invalid OTP. Please try again."
@@ -383,7 +383,7 @@ async def edit_profile_post(request: Request, username: str = Form(...), email: 
     if not current_username:
         return RedirectResponse("/login", status_code=303)
 
-    if email.endswith("@mail.utoronto.ca"):
+    if email.endswith("@gmail.com"):
         users_collection.update_one(
             {"username": current_username},
             {"$set": {"username": username, "email": email}}

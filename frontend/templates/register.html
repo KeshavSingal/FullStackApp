@@ -24,7 +24,7 @@
 
                     <div class="form-group mb-3">
                         <label for="emailField" class="form-label">University Email</label>
-                        <input type="email" name="email" id="emailField" placeholder="University Email (e.g., @mail.utoronto.ca)" class="form-control" required>
+                        <input type="email" name="email" id="emailField" placeholder="University Email (e.g., @gmail.com)" class="form-control" required>
                     </div>
 
                     <div class="form-group mb-3 d-grid">
@@ -71,7 +71,7 @@
     document.getElementById("sendOtpButton").addEventListener("click", function() {
         const email = document.getElementById("emailField").value;
 
-        if (email.endsWith("@mail.utoronto.ca")) {
+        if (email.endsWith("@gmail.com")) {
             fetch("/generate-otp", {
                 method: "POST",
                 headers: {
