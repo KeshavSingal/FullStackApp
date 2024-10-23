@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h2>Hi, {{ username }}! Welcome to your dashboard.</h2>
+        </div>
+        <div class="col-auto">
+            <a href="/add-product" class="btn btn-success">
+                <i class="fas fa-plus-circle me-2"></i>Add Product
+            </a>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="row">
+        {% if products %}
+            {% for product in products %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}"
+                         style="height: 200px; object-fit: cover;">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text">
+                            <strong>${{ "%.2f"|format(product.price) }}</strong>
+                        </p>
+                        {% if product.ratings %}
+                            <p class="mb-0">
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-star me-1"></i>
+                                    {{ "%.1f"|format(product.ratings|sum / product.ratings|length) }}
+                                </span>
+                                ({{ product.ratings|length }} ratings)
+                            </p>
+                        {% else %}
+                            <p class="text-muted mb-0">No ratings yet</p>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-grid gap-2">
+                            <a href="/product/{{ product._id }}" class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-2"></i>View Details
+                            </a>
+                            <button class="btn btn-outline-danger" onclick="confirmDelete('{{ product._id }}')">
+                                <i class="fas fa-trash me-2"></i>Remove Listing
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-store fa-4x mb-3 text-muted"></i>
+                <h4>You haven't listed any products yet</h4>
+                <p class="text-muted mb-4">Start selling by adding your first product</p>
+                <a href="/add-product" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus-circle me-2"></i>Add Your First Product
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to remove this product listing?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(productId) {
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const deleteForm = document.getElementById('deleteForm');
+    deleteForm.action = `/delete-product/${productId}`;
+    modal.show();
+}
+</script>
+
+{% endblock %}

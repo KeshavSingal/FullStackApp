@@ -287,6 +287,38 @@ async def seller_profile(request: Request, username: str):
     })
 
 
+@app.get("/seller-dashboard", response_class=HTMLResponse)
+async def seller_dashboard(request: Request):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Get all products added by this seller
+    seller_products = list(products_collection.find({"added_by": username}))
+
+    return templates.TemplateResponse("seller_dashboard.html", {
+        "request": request,
+        "username": username,
+        "products": seller_products
+    })
+
+
+@app.post("/delete-product/{product_id}")
+async def delete_product(product_id: str, request: Request):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    # Verify the product belongs to the seller before deleting
+    product = products_collection.find_one({"_id": ObjectId(product_id)})
+    if not product or product["added_by"] != username:
+        raise HTTPException(status_code=403, detail="Unauthorized to delete this product")
+
+    # Delete the product
+    products_collection.delete_one({"_id": ObjectId(product_id)})
+
+    return RedirectResponse("/seller-dashboard", status_code=303)
+
 @app.post("/review-seller")
 async def review_seller(request: Request, username: str = Form(...), review: str = Form(...), rating: int = Form(...)):
     current_username = request.cookies.get("username")
